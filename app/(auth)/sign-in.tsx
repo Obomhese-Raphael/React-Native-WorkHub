@@ -14,10 +14,10 @@ import * as Linking from "expo-linking";
 export default function SignInScreen() {
     const { signIn, setActive, isLoaded } = useSignIn();
     const router = useRouter();
-
     const { isSignedIn } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+
 
     // --- Email & Password sign-in ---
     const handleEmailSignIn = async () => {

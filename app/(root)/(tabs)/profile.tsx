@@ -5,7 +5,12 @@ import { Link } from "expo-router";
 
 const Profile = () => {
   const { user } = useUser();
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
+
+  const fetchJWT = async () => {
+    const token = await getToken();
+    console.log("JWT: ", token);
+  }
 
   const handleSignOut = async () => {
     try {
@@ -80,6 +85,16 @@ const Profile = () => {
       >
         <Text className="text-center text-white font-semibold text-lg">
           Sign Out
+        </Text>
+      </TouchableOpacity>
+
+      {/* GET CLERK TOKEN */}
+      <TouchableOpacity
+        onPress={fetchJWT}
+        className="mt-8 bg-red-600 py-3 rounded-xl"
+      >
+        <Text className="text-center text-white font-semibold text-lg">
+          Get Token
         </Text>
       </TouchableOpacity>
     </SafeAreaView>
