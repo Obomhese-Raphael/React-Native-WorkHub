@@ -5,6 +5,7 @@ import "dotenv/config";
 import teamsRouter from "./routes/team.js";
 import projectRouter from "./routes/project.js";
 import taskRouter from "./routes/task.js";
+import serverless from "serverless-http";
 
 // Initialise app
 const app = express();
@@ -40,3 +41,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Export for Vercel
+export const handler = serverless(app);
