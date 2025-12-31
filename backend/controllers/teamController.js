@@ -1,3 +1,4 @@
+// import { useUser } from "@clerk/clerk-expo";
 import teamModel from "../models/Team.js";
 
 // Create Team
@@ -5,8 +6,9 @@ const createTeam = async (req, res) => {
   try {
     const { name, description, color } = req.body;
     const userId = req.userId;
-    const userName = req.userName;
-    const userEmail = req.userEmail;
+    // Fallbacks if Clerk doesn't provide name/email
+    const userName = req.userName || "Unknown User";
+    const userEmail = req.userEmail || "no-email@workhub.app";
 
     const newTeam = new teamModel({
       name,
@@ -16,7 +18,7 @@ const createTeam = async (req, res) => {
       members: [
         {
           userId,
-          name: userName,
+          name: userName, 
           email: userEmail,
           role: "admin",
         },
@@ -36,6 +38,7 @@ const createTeam = async (req, res) => {
   }
 };
 
+// Get All Teams
 const getAllTeams = async (req, res) => {
   try {
     const teams = await teamModel
@@ -83,6 +86,7 @@ const getTeamById = async (req, res) => {
   }
 };
 
+// Update Team
 const updateTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -212,6 +216,7 @@ const addProject = async (req, res) => {
   }
 };
 
+// Delete Team (Soft Delete)
 const deleteTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -235,7 +240,19 @@ const deleteTeam = async (req, res) => {
   }
 };
 
-// ✅ Remove a member from a team
+// Delete all Teams (TEST)
+const deleteAllTeams = async (req, res) => {
+  try {
+    await teamModel.deleteMany({});
+    res.json({ success: true, message: "All teams deleted successfully" });
+  }
+  catch (error) {
+    console.error("Error deleting all teams:", error);
+    res.status(500).json({ success: false, error: "Failed to delete all teams" });
+  }
+}
+
+// Remove a member from a team
 const deleteMember = async (req, res) => {
   try {
     const { teamId, email } = req.params;
@@ -268,6 +285,7 @@ const deleteMember = async (req, res) => {
   }
 };
 
+// Search Teams by Name
 const searchTeams = async (req, res) => {
   try {
     const { name } = req.query;
@@ -286,4 +304,4 @@ const searchTeams = async (req, res) => {
     res.status(500).json({ message: "Error searching teams" });
   }
 };
-export default { createTeam, getTeamById, addMember, addProject, updateTeam, deleteTeam, deleteMember, getAllTeams, searchTeams };
+export default { createTeam, getTeamById, addMember, addProject, updateTeam, deleteTeam, deleteAllTeams, deleteMember, getAllTeams, searchTeams };

@@ -1,15 +1,16 @@
+import { useAuth, useSignIn } from "@clerk/clerk-expo";
+import * as Linking from "expo-linking";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    View,
+    KeyboardAvoidingView,
+    Platform,
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
-    Platform,
+    View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useAuth, useSignIn } from "@clerk/clerk-expo";
-import * as Linking from "expo-linking";
+import Toast from "react-native-toast-message";
 
 export default function SignInScreen() {
     const { signIn, setActive, isLoaded } = useSignIn();
@@ -20,20 +21,32 @@ export default function SignInScreen() {
 
 
     // --- Email & Password sign-in ---
-    const handleEmailSignIn = async () => {
-        if (!isLoaded) return;
-        try {
-            const result = await signIn.create({
-                identifier: email,
-                password,
-            });
-            if (result.status === "complete") {
-                await setActive({ session: result.createdSessionId });
-            }
-        } catch (err: any) {
-            console.error("Sign-in error", err);
+
+const handleEmailSignIn = async () => {
+    if (!isLoaded) return;
+
+    try {
+        const result = await signIn.create({
+            identifier: email,
+            password,
+        });
+
+        if (result.status === "complete") {
+            await setActive({ session: result.createdSessionId });
+            console.log("✅ Sign-in successful");
         }
-    };
+    } catch (err: any) {
+        Toast.show({
+            type: "error",
+            text1: "Sign-In Error",
+            text2: err.message || "An error occurred during sign-in.",
+            visibilityTime: 7000, // 7000 ms = 7 seconds
+            autoHide: true,       // ensures it disappears automatically
+        });
+
+        console.error("Sign-in error", err);
+    }
+};
 
     // --- Google OAuth sign-in ---
     const handleGoogleSignIn = async () => {

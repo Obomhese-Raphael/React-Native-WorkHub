@@ -86,7 +86,7 @@ teamSchema.statics.findByUser = function (userId) {
     createdAt: -1,
   });
 };
-
+s
 const teamModel = mongoose.models.team || mongoose.model("team", teamSchema);
 export default teamModel;
 
@@ -148,7 +148,7 @@ const createTeam = async (req, res) => {
     if (!adminName || !adminEmail) {
       return res.status(400).json({
         success: false,
-        error: "Admin name and email are required",
+        error: "name and email are required",
       });
     }
 

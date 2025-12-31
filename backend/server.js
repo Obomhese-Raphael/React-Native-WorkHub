@@ -1,22 +1,28 @@
 // backend/server.js
+import dotenv from "dotenv";
+dotenv.config(); // ← Move this RIGHT AFTER the dotenv import
+
+import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
-import "dotenv/config";
-import cors from "cors";
-import teamsRouter from "./routes/team.js";
 import projectRouter from "./routes/project.js";
 import taskRouter from "./routes/task.js";
+import teamsRouter from "./routes/team.js";
 
 const app = express();
-const PORT = 3000
+const PORT = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
 
-// Routes
+if (!process.env.MONGODB_URI) {
+  throw new Error("❌ MONGODB_URI is missing. Check your .env file.");
+}
+
+// Routes 
 app.use("/projects", projectRouter);
 app.use("/tasks", taskRouter);
-app.use("/teams", teamsRouter);
+app.use("/api/teams", teamsRouter);
 
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");

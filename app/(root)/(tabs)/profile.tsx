@@ -1,13 +1,13 @@
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, View, Image, TouchableOpacity } from "react-native";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Link } from "expo-router";
+import { Image, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Profile = () => {
   const { user } = useUser();
   const { signOut, getToken } = useAuth();
 
-  const fetchJWT = async () => {
+  const fetchJWT = async () => { 
     const token = await getToken();
     console.log("JWT: ", token);
   }
