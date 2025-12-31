@@ -18,7 +18,7 @@ const createTeam = async (req, res) => {
       members: [
         {
           userId,
-          name: userName, 
+          name: userName,
           email: userEmail,
           role: "admin",
         },
@@ -89,7 +89,7 @@ const getTeamById = async (req, res) => {
 // Update Team
 const updateTeam = async (req, res) => {
   try {
-    const { teamId } = req.params;
+    const teamId = req.params.id;
     const updates = req.body;
 
     const team = await teamModel.findById(teamId);
@@ -245,26 +245,32 @@ const deleteAllTeams = async (req, res) => {
   try {
     await teamModel.deleteMany({});
     res.json({ success: true, message: "All teams deleted successfully" });
-  }
-  catch (error) {
+  } catch (error) {
     console.error("Error deleting all teams:", error);
-    res.status(500).json({ success: false, error: "Failed to delete all teams" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to delete all teams" });
   }
-}
+};
 
-// Remove a member from a team
+
 const deleteMember = async (req, res) => {
   try {
-    const { teamId, email } = req.params;
+    const { teamId } = req.params;
+    const { email } = req.params; // Keep email from params
+    const memberId = req.params.memberId || req.params.id; // Fallback if needed
 
     const team = await teamModel.findById(teamId);
-    if (!team) {
+    if (!team || !team.isActive) {
       return res.status(404).json({ success: false, error: "Team not found" });
     }
 
-    // Remove member by email
     const initialLength = team.members.length;
-    team.members = team.members.filter((m) => m.email !== email);
+
+    // Remove by email OR by subdocument _id
+    team.members = team.members.filter(
+      (m) => m.email !== email && (!memberId || m._id.toString() !== memberId)
+    );
 
     if (team.members.length === initialLength) {
       return res
@@ -277,10 +283,10 @@ const deleteMember = async (req, res) => {
     res.json({
       success: true,
       data: team,
-      message: `Member with email ${email} removed from team`,
+      message: `Member removed successfully`,
     });
   } catch (error) {
-    console.error("Error deleting member:", error);
+    console.error("Error removing member:", error);
     res.status(500).json({ success: false, error: "Failed to remove member" });
   }
 };
@@ -304,4 +310,15 @@ const searchTeams = async (req, res) => {
     res.status(500).json({ message: "Error searching teams" });
   }
 };
-export default { createTeam, getTeamById, addMember, addProject, updateTeam, deleteTeam, deleteAllTeams, deleteMember, getAllTeams, searchTeams };
+export default {
+  createTeam,
+  getTeamById,
+  addMember,
+  addProject,
+  updateTeam,
+  deleteTeam,
+  deleteAllTeams,
+  deleteMember,
+  getAllTeams,
+  searchTeams,
+};
