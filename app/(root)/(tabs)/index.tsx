@@ -3,33 +3,8 @@ import icons from "@/constants/icons";
 import { useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
-// Dummy Data
-const teams = [
-    { id: '1', name: 'Marketing', members: 5 },
-    { id: '2', name: 'Engineering', members: 8 },
-    { id: '3', name: 'Design', members: 4 },
-    { id: '4', name: 'Development', members: 10 },
-    { id: '5', name: 'Education', members: 3 },
-];
-
-const projects = [
-    { id: '1', name: 'Website Redesign', team: 'Design', tasksOpen: 12 },
-    { id: '2', name: 'New App Feature', team: 'Engineering', tasksOpen: 7 },
-    { id: '3', name: 'Social Campaign', team: 'Marketing', tasksOpen: 4 },
-    { id: '4', name: 'Learning Websockets', team: 'Development', tasksOpen: 5 },
-    { id: '5', name: 'Studying for the exam', team: 'Education', tasksOpen: 3 },
-];
-
-const taskSummary = {
-    todo: 8,
-    inProgress: 5,
-    done: 12,
-    overdue: 4,
-    upcoming: 3,
-    reminders: 1
-};
 
 export default function HomeScreen() {
     const { user } = useUser();

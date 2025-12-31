@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 // Dummy Projects & Tasks
 const projects = [
@@ -15,7 +15,7 @@ const tasks = [
         projectId: "1",
         title: "Design landing page",
         status: "To Do",
-        assignedUsers: ["Alice", "Bob"],
+        assignedUsers: ["Alice", "Bob", "Grace"],
         createdAt: "2025-08-15",
     },
     {

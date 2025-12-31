@@ -1,16 +1,19 @@
+import icons from '@/constants/icons';
+import { useOAuth, useSignUp } from "@clerk/clerk-expo";
+import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import {
-    View,
+    ActivityIndicator,
+    Alert,
+    Image,
     Text,
     TextInput,
     TouchableOpacity,
-    SafeAreaView,
-    Alert,
-    ActivityIndicator,
+    View,
 } from "react-native";
-import { useSignUp, useOAuth } from "@clerk/clerk-expo";
-import * as WebBrowser from "expo-web-browser";
-import { Link, router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from 'react-native-toast-message';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,7 +36,7 @@ export default function SignUpScreen() {
             Alert.alert("Error", "Please fill in all fields");
             return;
         }
-
+ 
         if (password.length < 8) {
             Alert.alert("Error", "Password must be at least 8 characters long");
             return;
@@ -59,6 +62,12 @@ export default function SignUpScreen() {
         } catch (err) {
             console.error("Sign up error:", err);
             Alert.alert("Error", err.errors?.[0]?.message || "Failed to create account");
+            Toast.show({
+                type: 'error',          // success | error | info
+                text1: 'Try again',     // short message
+                visibilityTime: 2000,   // 2 seconds
+                position: 'bottom',     // top | bottom
+            });
         } finally {
             setLoading(false);
         }
@@ -183,6 +192,14 @@ export default function SignUpScreen() {
     return (
         <SafeAreaView className="flex-1 items-center justify-center px-6 bg-white">
             <View className="w-full max-w-sm">
+                <View className="w-10 h-10 self-center mb-6 border border-gray-300 rounded-full p-2">
+                    <Image
+                        source={icons.person}
+                        className="w-full h-full rounded-full"
+                        resizeMode="contain"
+                    />
+                </View>
+
                 <Text className="text-2xl font-bold text-center text-gray-800 mb-6">
                     {pendingVerification ? "Verify Your Email ✉️" : "Create an Account ⚒️"}
                 </Text>
@@ -207,8 +224,8 @@ export default function SignUpScreen() {
                             onPress={handleVerifyCode}
                             disabled={loading || code.length !== 6}
                             className={`rounded-lg py-3 mb-4 ${loading || code.length !== 6
-                                    ? "bg-gray-400"
-                                    : "bg-blue-600"
+                                ? "bg-gray-400"
+                                : "bg-blue-600"
                                 }`}
                         >
                             {loading ? (

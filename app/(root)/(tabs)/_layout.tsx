@@ -1,7 +1,7 @@
-import React from "react";
-import { Redirect, Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
+import { Redirect, Tabs } from "expo-router";
+import React from "react";
 
 const Layout = () => {
   const { isSignedIn } = useAuth();
