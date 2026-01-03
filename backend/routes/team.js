@@ -18,26 +18,25 @@ if (process.env.NODE_ENV === "development" && process.env.BYPASS_AUTH === "true"
 }
 
 // Routes
+// Create team
 teamsRouter.post("/create-team", teamController.createTeam);
+// Get all teams
 teamsRouter.get("/all-teams", teamController.getAllTeams);
+// Search teams
 teamsRouter.get("/search", teamController.searchTeams);
-
+// Get team by ID
 teamsRouter.get("/:id", teamController.getTeamById);
+// Update team
 teamsRouter.put("/:id", teamController.updateTeam);
-teamsRouter.delete("/:id", teamController.deleteTeam);
-
+// Delete team
+teamsRouter.delete("/:id/delete-team", teamController.deleteTeam);
 // Add member
 teamsRouter.put("/:id/add-member", teamController.addMember);
-
 // Remove member by email (most user-friendly)
 teamsRouter.delete("/:id/members/:email", teamController.deleteMember);
 
 // Add project to team
 teamsRouter.post("/:id/projects", teamController.addProject);  // ← NEW: Proper RESTful route
 
-// Danger zone (keep behind dev check if needed)
-if (process.env.NODE_ENV === "development") {
-  teamsRouter.delete("/delete-all", teamController.deleteAllTeams);
-}
 
 export default teamsRouter;

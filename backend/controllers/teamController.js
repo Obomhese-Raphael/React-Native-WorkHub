@@ -1,7 +1,7 @@
 // import { useUser } from "@clerk/clerk-expo";
 import teamModel from "../models/Team.js";
 
-// Create Team
+// Create Team - Done ✅
 const createTeam = async (req, res) => {
   try {
     const { name, description, color } = req.body;
@@ -38,13 +38,26 @@ const createTeam = async (req, res) => {
   }
 };
 
-// Get All Teams
+// Get All Teams - Done ✅
+// const getAllTeams = async (req, res) => {
+//   try {
+//     const teams = await teamModel
+//       .find({ isActive: true })
+//       .populate("projects", "name status dueDate") // only return selected project fields
+//       .populate("members", "name email role"); // if members are stored as subdocs, adjust accordingly
+
+//     res.json({ success: true, data: teams });
+//   } catch (error) {
+//     console.error("Error fetching teams:", error);
+//     res.status(500).json({ success: false, error: "Failed to fetch teams" });
+//   }
+// };
+
 const getAllTeams = async (req, res) => {
   try {
     const teams = await teamModel
       .find({ isActive: true })
-      .populate("projects", "name status dueDate") // only return selected project fields
-      .populate("members", "name email role"); // if members are stored as subdocs, adjust accordingly
+      .sort({ createdAt: -1 });
 
     res.json({ success: true, data: teams });
   } catch (error) {
@@ -53,7 +66,7 @@ const getAllTeams = async (req, res) => {
   }
 };
 
-// Get Team by ID
+// Get Team by ID - Done ✅
 const getTeamById = async (req, res) => {
   try {
     const teamId = req.params.id;
@@ -86,7 +99,7 @@ const getTeamById = async (req, res) => {
   }
 };
 
-// Update Team
+// Update Team - Done ✅
 const updateTeam = async (req, res) => {
   try {
     const teamId = req.params.id;
@@ -112,11 +125,11 @@ const updateTeam = async (req, res) => {
   }
 };
 
-// Add Member
+// Add Member - Done ✅
 const addMember = async (req, res) => {
   try {
     const teamId = req.params.id;
-    const { name, email, role = "member" } = req.body;
+    const { userId, name, email, role = "member" } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({
@@ -143,6 +156,7 @@ const addMember = async (req, res) => {
     }
 
     team.members.push({
+      userId,
       name,
       email,
       role,
@@ -168,14 +182,14 @@ const addMember = async (req, res) => {
   }
 };
 
-// Add Project
+// Add Project - Updated & Improved ✅
 const addProject = async (req, res) => {
   try {
     const teamId = req.params.id;
-    const { name, description } = req.body;
     const userId = req.userId;
+    const { name, description } = req.body;
 
-    if (!name) {
+    if (!name || name.trim() === "") {
       return res.status(400).json({
         success: false,
         error: "Project name is required",
@@ -195,19 +209,20 @@ const addProject = async (req, res) => {
       });
     }
 
-    const project = {
-      name,
-      description,
+    const newProject = {
+      name: name.trim(),
+      description: description?.trim() || "",
       createdBy: userId,
       createdAt: new Date(),
     };
 
-    team.projects.push(project);
+    team.projects.push(newProject);
     await team.save();
 
-    res.json({
+    // Return only the projects array (or the new one for better UX)
+    res.status(201).json({
       success: true,
-      data: team.projects,
+      data: team.projects, // or newProject if you want just the added one
       message: "Project added successfully",
     });
   } catch (error) {
@@ -216,12 +231,12 @@ const addProject = async (req, res) => {
   }
 };
 
-// Delete Team (Soft Delete)
+// Delete Team (Soft Delete) - Done ✅
 const deleteTeam = async (req, res) => {
   try {
-    const { teamId } = req.params;
+    const { id } = req.params;
 
-    const team = await teamModel.findById(teamId);
+    const team = await teamModel.findById(id);
     if (!team) {
       return res.status(404).json({ success: false, error: "Team not found" });
     }
@@ -240,59 +255,83 @@ const deleteTeam = async (req, res) => {
   }
 };
 
-// Delete all Teams (TEST)
-const deleteAllTeams = async (req, res) => {
-  try {
-    await teamModel.deleteMany({});
-    res.json({ success: true, message: "All teams deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting all teams:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to delete all teams" });
-  }
-};
-
-
+// Delete Member by Email - THIS IS NOT DONE YET ❌
 const deleteMember = async (req, res) => {
+  console.log("auth:", req.auth);
+
   try {
-    const { teamId } = req.params;
-    const { email } = req.params; // Keep email from params
-    const memberId = req.params.memberId || req.params.id; // Fallback if needed
+    const { id: teamId, email: memberEmail } = req.params;
+
+    if (!memberEmail) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Member email is required" });
+    }
 
     const team = await teamModel.findById(teamId);
-    if (!team || !team.isActive) {
+
+    if (!team) {
       return res.status(404).json({ success: false, error: "Team not found" });
+    }
+
+    if (!team.isActive) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Cannot modify inactive team" });
+    }
+
+    // Check if current user is admin (important!)
+    const currentUserId = req.auth?.userId;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthenticated",
+      });
+    }
+
+    const isAdmin = team.members.some(
+      (m) => m.userId === currentUserId && m.role === "admin"
+    );
+
+    if (!isAdmin) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Only team admins can remove members" });
     }
 
     const initialLength = team.members.length;
 
-    // Remove by email OR by subdocument _id
-    team.members = team.members.filter(
-      (m) => m.email !== email && (!memberId || m._id.toString() !== memberId)
-    );
+    // Remove member by email
+    team.members = team.members.filter((m) => m.email !== memberEmail);
 
     if (team.members.length === initialLength) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Member not found in team" });
+      return res.status(404).json({
+        success: false,
+        error: "Member with that email not found in team",
+      });
     }
 
     await team.save();
 
     res.json({
       success: true,
-      data: team,
-      message: `Member removed successfully`,
+      message: "Member removed successfully",
+      data: {
+        teamId: team._id,
+        removedEmail: memberEmail,
+        remainingMembers: team.members.length,
+      },
     });
   } catch (error) {
-    console.error("Error removing member:", error);
+    console.error("Error removing member from team:", error);
     res.status(500).json({ success: false, error: "Failed to remove member" });
   }
 };
 
-// Search Teams by Name
+// Search Teams by Name - Done ✅
 const searchTeams = async (req, res) => {
+  console.log("Search query:", req.query);
   try {
     const { name } = req.query;
     if (!name) {
@@ -310,6 +349,7 @@ const searchTeams = async (req, res) => {
     res.status(500).json({ message: "Error searching teams" });
   }
 };
+
 export default {
   createTeam,
   getTeamById,
@@ -317,7 +357,6 @@ export default {
   addProject,
   updateTeam,
   deleteTeam,
-  deleteAllTeams,
   deleteMember,
   getAllTeams,
   searchTeams,

@@ -15,11 +15,6 @@ const getUserInfo = (req, res, next) => {
       req.userEmail = req.auth.claims?.email || null;
       req.userName =
         req.auth.claims?.name || req.auth.claims?.firstName || null;
-      console.log("✅ User authenticated:", {
-        userId: req.userId,
-        email: req.userEmail,
-        name: req.userName,
-      });
       next();
     } else {
       return res.status(401).json({

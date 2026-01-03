@@ -46,11 +46,27 @@ const teamSchema = new mongoose.Schema({
   },
   members: [memberSchema],
   projects: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "project",
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-  ], // ✅ Added projects
+    description: {
+      type: String,
+      trim: true,
+    },
+    createdBy: {
+      type: String, // Clerk userId
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    // You can add more later: status, dueDate, tasks[], etc.
+  },
+],
   color: {
     type: String,
     default: "#3B82F6",

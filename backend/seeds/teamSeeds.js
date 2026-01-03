@@ -14,6 +14,7 @@ const seedTeams = async () => {
         color: "#FF6B6B",
         members: [
           { userId: "user_123", role: "admin" },
+          { userId: "dev-user-123", name: "Dev User", email: "dev@example.com", role: "admin" },
           { userId: "user_456", role: "member" },
           { userId: "user_789", role: "member" },
         ],
