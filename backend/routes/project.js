@@ -1,29 +1,73 @@
 // routes/project.js
 import express from "express";
 import {
+  addMemberToProject,
   createProject,
-  getProjectsByTeam,
-  updateProject,
   deleteProject,
+  getProjectById,
+  getProjectsByTeam,
+  listProjectMembers,
+  removeMemberFromProject,
   searchProjects,
+  updateProject,
+  updateProjectMemberRole,
 } from "../controllers/projectController.js";
+import { devBypassAuth, getUserInfo, requireAuth } from "../middleware/auth.js";
+import { requireProjectAccess } from "../middleware/projectAccess.js";
 
 const projectRouter = express.Router();
 
-// Create a project under a team
-projectRouter.post("/:teamId/create", createProject);
+// 1. Auth middleware for the entire router
+if (
+  process.env.NODE_ENV === "development" &&
+  process.env.BYPASS_AUTH === "true"
+) {
+  projectRouter.use(devBypassAuth);
+  console.log("🔓 Development auth bypass ENABLED");
+} else {
+  projectRouter.use(requireAuth);
+  projectRouter.use(getUserInfo);
+  console.log("🔒 Real Clerk auth ENABLED");
+}
 
-// Search for a project by name
+// 2. Routes that do NOT need project access check
+projectRouter.post("/teams/:teamId/projects", createProject);
+projectRouter.get("/teams/:teamId/projects", getProjectsByTeam);
 projectRouter.get("/search", searchProjects);
 
-// Get all projects for a team
-projectRouter.get("/:teamId", getProjectsByTeam);
+// 3. Roues that operate on SPECIFIC projects and need access check -> use requireProjectAccess
+projectRouter.get("/projects/:projectId", requireProjectAccess, getProjectById);
+projectRouter.put(
+  "/:teamId/projects/:projectId",
+  requireProjectAccess,
+  updateProject
+);
+projectRouter.delete(
+  "/teams/:teamId/projects/:projectId",
+  requireProjectAccess,
+  deleteProject
+);
 
-// Update a project
-projectRouter.put("/:projectId", updateProject);
-
-// Delete a project
-projectRouter.delete("/:projectId", deleteProject);
-
-
+// 4. Project Member Management Routes (all need specific project access)
+projectRouter.post(
+  "/teams/:teamId/projects/:projectId/members",
+  requireProjectAccess,
+  addMemberToProject
+);
+projectRouter.delete(
+  "/teams/:teamId/projects/:projectId/members",
+  requireProjectAccess,
+  removeMemberFromProject
+);
+// Update project member role
+projectRouter.patch(
+  "/teams/:teamId/projects/:projectId/members/role",
+  requireProjectAccess,
+  updateProjectMemberRole
+);
+projectRouter.get(
+  "/teams/:teamId/projects/:projectId/members",
+  requireProjectAccess,
+  listProjectMembers
+);
 export default projectRouter;

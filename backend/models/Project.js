@@ -23,6 +23,27 @@ const projectSchema = new mongoose.Schema({
     type: String, // userId of creator
     required: true,
   },
+  projectMembers: [
+  {
+    userId: {
+      type: String, // Clerk userId
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["owner", "editor", "viewer"],
+      default: "viewer",
+    },
+    addedBy: {
+      type: String, // Clerk userId who added them
+      required: true,
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+],
   status: {
     type: String,
     enum: ["active", "archived", "completed"],

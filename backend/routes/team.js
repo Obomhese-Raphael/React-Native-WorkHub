@@ -35,8 +35,4 @@ teamsRouter.put("/:id/add-member", teamController.addMember);
 // Remove member by email (most user-friendly)
 teamsRouter.delete("/:id/members/:email", teamController.deleteMember);
 
-// Add project to team
-teamsRouter.post("/:id/projects", teamController.addProject);  // ← NEW: Proper RESTful route
-
-
 export default teamsRouter;

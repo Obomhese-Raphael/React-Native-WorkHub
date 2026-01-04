@@ -45,28 +45,13 @@ const teamSchema = new mongoose.Schema({
     required: [true, "Team creator is required"],
   },
   members: [memberSchema],
+  // NEW (referenced — use this)
   projects: [
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "project", // matches your projectModel name
     },
-    description: {
-      type: String,
-      trim: true,
-    },
-    createdBy: {
-      type: String, // Clerk userId
-      required: true,
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-    // You can add more later: status, dueDate, tasks[], etc.
-  },
-],
+  ],
   color: {
     type: String,
     default: "#3B82F6",

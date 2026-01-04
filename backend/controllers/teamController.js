@@ -39,20 +39,6 @@ const createTeam = async (req, res) => {
 };
 
 // Get All Teams - Done ✅
-// const getAllTeams = async (req, res) => {
-//   try {
-//     const teams = await teamModel
-//       .find({ isActive: true })
-//       .populate("projects", "name status dueDate") // only return selected project fields
-//       .populate("members", "name email role"); // if members are stored as subdocs, adjust accordingly
-
-//     res.json({ success: true, data: teams });
-//   } catch (error) {
-//     console.error("Error fetching teams:", error);
-//     res.status(500).json({ success: false, error: "Failed to fetch teams" });
-//   }
-// };
-
 const getAllTeams = async (req, res) => {
   try {
     const teams = await teamModel
@@ -182,55 +168,6 @@ const addMember = async (req, res) => {
   }
 };
 
-// Add Project - Updated & Improved ✅
-const addProject = async (req, res) => {
-  try {
-    const teamId = req.params.id;
-    const userId = req.userId;
-    const { name, description } = req.body;
-
-    if (!name || name.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        error: "Project name is required",
-      });
-    }
-
-    const team = await teamModel.findById(teamId);
-
-    if (!team || !team.isActive) {
-      return res.status(404).json({ success: false, error: "Team not found" });
-    }
-
-    if (!team.isUserMember(userId)) {
-      return res.status(403).json({
-        success: false,
-        error: "Access denied. You are not a member of this team.",
-      });
-    }
-
-    const newProject = {
-      name: name.trim(),
-      description: description?.trim() || "",
-      createdBy: userId,
-      createdAt: new Date(),
-    };
-
-    team.projects.push(newProject);
-    await team.save();
-
-    // Return only the projects array (or the new one for better UX)
-    res.status(201).json({
-      success: true,
-      data: team.projects, // or newProject if you want just the added one
-      message: "Project added successfully",
-    });
-  } catch (error) {
-    console.error("Error adding project:", error);
-    res.status(500).json({ success: false, error: "Failed to add project" });
-  }
-};
-
 // Delete Team (Soft Delete) - Done ✅
 const deleteTeam = async (req, res) => {
   try {
@@ -354,7 +291,6 @@ export default {
   createTeam,
   getTeamById,
   addMember,
-  addProject,
   updateTeam,
   deleteTeam,
   deleteMember,

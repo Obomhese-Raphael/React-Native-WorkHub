@@ -20,8 +20,8 @@ if (!process.env.MONGODB_URI) {
 }
 
 // Routes 
-app.use("/projects", projectRouter);
-app.use("/tasks", taskRouter);
+app.use("/api/projects", projectRouter);
+app.use("/api/tasks", taskRouter);
 app.use("/api/teams", teamsRouter);
 
 app.get("/", (req, res) => {
