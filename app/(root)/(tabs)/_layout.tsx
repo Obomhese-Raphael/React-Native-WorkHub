@@ -1,25 +1,34 @@
+// app/(root)/(tabs)/_layout.tsx
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import React from "react";
+import { View } from "react-native";
 
-const Layout = () => {
+const TabsLayout = () => {
   const { isSignedIn } = useAuth();
 
   if (!isSignedIn) {
     return <Redirect href="/sign-in" />;
   }
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2563eb", // blue-600
+        tabBarActiveTintColor: "#3b82f6", // blue-500
         tabBarInactiveTintColor: "#9ca3af", // gray-400
         tabBarStyle: {
-          position: "absolute",
-          borderTopColor: "#0061FF1A",
+          height: 84,
+          paddingBottom: 24,
+          paddingTop: 8,
+          backgroundColor: "#ffffff",
           borderTopWidth: 1,
-          minHeight: 70,
+          borderTopColor: "#e5e7eb",
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
         },
       }}
     >
@@ -27,26 +36,55 @@ const Layout = () => {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
+
       <Tabs.Screen
-        name="tasks"
+        name="create"
         options={{
-          title: "Tasks",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" color={color} size={size} />
+          title: "Create",
+          tabBarIcon: ({ color }) => (
+            <View className="-mt-6">
+              <View className="bg-blue-600 w-16 h-16 rounded-full items-center justify-center shadow-lg border-4 border-white">
+                <Ionicons name="add" size={36} color="white" />
+              </View>
+            </View>
+          ),
+          tabBarLabel: () => null, // Hide label under big button
+        }}
+      />
+
+      <Tabs.Screen
+        name="my-work"
+        options={{
+          title: "My Work",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "briefcase" : "briefcase-outline"}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
+
       <Tabs.Screen
-        name="profile"
+        name="settings"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" color={color} size={size} />
+          title: "Settings",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "settings" : "settings-outline"}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
@@ -54,4 +92,4 @@ const Layout = () => {
   );
 };
 
-export default Layout;
+export default TabsLayout;

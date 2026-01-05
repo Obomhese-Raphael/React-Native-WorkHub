@@ -14,7 +14,16 @@ import teamsRouter from "./routes/team.js";
 const app = express();
 const PORT = process.env.PORT;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:19006",           // Expo dev
+      "https://your-expo-dev-client.app", // If using custom dev client
+      // Vercel allows all in production often, but be specific for security
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 if (!process.env.MONGODB_URI) {

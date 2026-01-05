@@ -1,172 +1,283 @@
+// app/(root)/(tabs)/index.tsx
 import SearchBar from "@/components/SearchBar";
 import icons from "@/constants/icons";
-import { useUser } from "@clerk/clerk-expo";
+import { api } from "@/lib/api";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-// Dummy Data
-const teams = [
-    { id: '1', name: 'Marketing', members: 5 },
-    { id: '2', name: 'Engineering', members: 8 },
-    { id: '3', name: 'Design', members: 4 },
-    { id: '4', name: 'Development', members: 10 },
-    { id: '5', name: 'Education', members: 3 },
-];
+type Team = {
+  _id: string;
+  name: string;
+  color: string;
+  members: { name: string }[];
+};
 
-const projects = [
-    { id: '1', name: 'Website Redesign', team: 'Design', tasksOpen: 12 },
-    { id: '2', name: 'New App Feature', team: 'Engineering', tasksOpen: 7 },
-    { id: '3', name: 'Social Campaign', team: 'Marketing', tasksOpen: 4 },
-    { id: '4', name: 'Learning Websockets', team: 'Development', tasksOpen: 5 },
-    { id: '5', name: 'Studying for the exam', team: 'Education', tasksOpen: 3 },
-];
+type Project = {
+  _id: string;
+  name: string;
+  teamId: string;
+  tasks: any[]; // We'll count later
+};
 
-const taskSummary = {
-    todo: 8,
-    inProgress: 5,
-    done: 12,
-    overdue: 4,
-    upcoming: 3,
-    reminders: 1
+type TaskSummary = {
+  todo: number;
+  inProgress: number;
+  done: number;
+  overdue: number;
+  upcoming: number;
+  reminders: number;
 };
 
 export default function HomeScreen() {
-    const { user } = useUser();
-    const [hourGreeting, setHourGreeting] = useState('')
-    const getTimeOfDay = () => {
-        const hour = new Date().getHours();
+  const { getToken } = useAuth();
+  const { user } = useUser();
+  const [greeting, setGreeting] = useState("");
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [taskSummary, setTaskSummary] = useState<TaskSummary>({
+    todo: 0,
+    inProgress: 0,
+    done: 0,
+    overdue: 0,
+    upcoming: 0,
+    reminders: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-        if (hour >= 5 && hour < 12) {
-            setHourGreeting("Morning");
-        } else if (hour >= 12 && hour < 18) {
-            setHourGreeting("Afternoon");
-        } else {
-            setHourGreeting("Evening");
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Morning");
+    else if (hour < 18) setGreeting("Afternoon");
+    else setGreeting("Evening");
+  }, []);
+
+  const fetchHomeData = async () => {
+    try {
+      setLoading(true);
+
+      // Safely get Clerk token inside component
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
+
+      // 1. Fetch user's teams
+      const teamsRes = await api("/teams", token);
+      const userTeams: Team[] = teamsRes.data || [];
+      setTeams(userTeams);
+
+      // 2. Prepare to collect all projects and count tasks
+      const allProjects: Project[] = [];
+      let totalTodo = 0;
+      let totalInProgress = 0;
+      let totalDone = 0;
+      let totalOverdue = 0;
+
+      // Loop through each team to get its projects
+      for (const team of userTeams) {
+        try {
+          const projectsRes = await api(`/teams/${team._id}/projects`, token);
+          const teamProjects = projectsRes.data || [];
+
+          // Add projects to list
+          allProjects.push(...teamProjects);
+
+          // Count tasks by status for summary
+          teamProjects.forEach((project: any) => {
+            const activeTasks =
+              project.tasks?.filter((t: any) => t.isActive) || [];
+
+            activeTasks.forEach((task: any) => {
+              switch (task.status) {
+                case "todo":
+                  totalTodo++;
+                  break;
+                case "in-progress":
+                  totalInProgress++;
+                  break;
+                case "done":
+                  totalDone++;
+                  break;
+              }
+
+              // Overdue: due date passed and not done
+              if (
+                task.dueDate &&
+                new Date(task.dueDate) < new Date() &&
+                task.status !== "done"
+              ) {
+                totalOverdue++;
+              }
+            });
+          });
+        } catch (err) {
+          console.warn(`Failed to load projects for team ${team.name}`, err);
+          // Continue with other teams
         }
+      }
+
+      // Update state with real data
+      setProjects(allProjects);
+
+      setTaskSummary({
+        todo: totalTodo,
+        inProgress: totalInProgress,
+        done: totalDone,
+        overdue: totalOverdue,
+        upcoming: 3, // You can enhance this later with real logic
+        reminders: 1, // Placeholder — add real reminders later
+      });
+    } catch (error: any) {
+      console.error("Failed to load home data:", error.message || error);
+      // Optional: show toast notification in the future
+    } finally {
+      setLoading(false);
     }
+  };
 
-    useEffect(() => {
-        getTimeOfDay();
-    }, []);
+  useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  if (loading) {
     return (
-        <ScrollView className="flex-1 bg-white px-4 pt-8">
-            <View>
-                {/* HEADER SECTION */}
-                <View className="mb-36">
-                    {/*  */}
-                    <View className="flex flex-row justify-between px-2 text-xl mb-6 mt-5">
-                        <Text className="font-bold text-center justify-center flex my-auto">Good {hourGreeting}, {user?.firstName}</Text>
-                        {/* User Button from clerk */}
-                        <View className="flex-row items-center">
-                            <TouchableOpacity onPress={() => router.push("/profile")}>
-                                <Image
-                                    source={user?.imageUrl ? { uri: user.imageUrl } : icons?.person}
-                                    className="w-10 h-10 rounded-full"
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* SEARCH */}
-                    <View>
-                        <View className="flex flex-row gap-2 justify-between my-auto items-center">
-                            <SearchBar placeholder="Search for your Projects" />
-                            <TouchableOpacity
-                                className="flex-none w-12 h-14 border border-gray-400 bg-gray-200 rounded-md items-center justify-center mr-3"
-                            >
-                                <Image
-                                    source={icons.filter}
-                                    className="w-7 h-7"
-                                    resizeMode="contain"
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* TEAMS */}
-                    <View>
-                        <Text className="text-lg font-semibold mb-2 mt-10">Your Teams</Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            className="mb-6"
-                        >
-                            {
-                                teams.map((team, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        className="bg-blue-100 rounded-xl p-4 mr-4 w-40"
-                                        onPress={() => console.log(`Go to Team ${team.name}`)}
-                                    >
-                                        <Text className="font-bold text-lg">{team.name}</Text>
-                                        <Text className="text-gray-600">{team.members}</Text>
-                                    </TouchableOpacity>
-                                ))
-                            }
-                        </ScrollView>
-                    </View>
-
-                    {/* TASKS SUMMARIES */}
-                    <View className="mb-2">
-                        <Text className="text-lg font-semibold mb-2">Task Summaries</Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            className="mb-6 gap-4"
-                            contentContainerStyle={{ paddingHorizontal: 4 }}
-                        >
-                            <View className="bg-yellow-100 rounded-xl p-4 w-28 items-center mr-4">
-                                <Text className="font-bold text-xl">{taskSummary.todo}</Text>
-                                <Text className="text-gray-600">To Do</Text>
-                            </View>
-                            <View className="bg-slate-300 rounded-xl p-4 w-28 items-center mr-4">
-                                <Text className="font-bold text-xl">{taskSummary.upcoming}</Text>
-                                <Text className="text-gray-600">Upcoming</Text>
-                            </View>
-                            <View className="bg-indigo-100 rounded-xl p-4 w-28 items-center mr-4">
-                                <Text className="font-bold text-xl">{taskSummary.reminders}</Text>
-                                <Text className="text-gray-600">Reminders</Text>
-                            </View>
-                            <View className="bg-orange-100 rounded-xl p-4 w-28 items-center mr-4">
-                                <Text className="font-bold text-xl">{taskSummary.inProgress}</Text>
-                                <Text className="text-gray-600">In Progress</Text>
-                            </View>
-                            <View className="bg-red-100 rounded-xl p-4 w-28 items-center mr-4">
-                                <Text className="font-bold text-xl">{taskSummary.overdue}</Text>
-                                <Text className="text-gray-600">Overdue</Text>
-                            </View>
-                            <View className="bg-green-100 rounded-xl p-4 w-28 items-center">
-                                <Text className="font-bold text-xl">{taskSummary.done}</Text>
-                                <Text className="text-gray-600">Done</Text>
-                            </View>
-                        </ScrollView>
-                    </View>
-
-                    {/* PROJECTS */}
-                    <View>
-                        <Text className="text-lg font-semibold mb-2">Projects</Text>
-                        <View className="mb-5">
-                            {projects.map(project => (
-                                <TouchableOpacity
-                                    key={project.id}
-                                    className="bg-green-100 rounded-xl p-4 mb-3"
-                                    onPress={() =>
-                                        router.push({
-                                            pathname: "/details/[projectId]",
-                                            params: { projectId: project.id },
-                                        })
-                                    }
-
-                                >
-                                    <Text className="font-bold text-lg">{project.name}</Text>
-                                    <Text className="text-gray-600">{project.team} • {project.tasksOpen} open tasks</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                </View>
-            </View>
-        </ScrollView >
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="mt-4 text-gray-600">Loading your workspace...</Text>
+      </SafeAreaView>
     );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <ScrollView className="px-4 pt-8">
+        {/* Header */}
+        <View className="flex-row justify-between items-center mb-6">
+          <Text className="text-xl font-bold">
+            Good {greeting}, {user?.firstName || "there"}!
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/settings")}>
+            <Image
+              source={{ uri: user?.imageUrl || icons.person }}
+              className="w-10 h-10 rounded-full"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Search */}
+        <View className="w-full border-blue-800">
+          <SearchBar placeholder="Search tasks, projects..." />
+        </View>
+
+        {/* Teams */}
+        <Text className="text-lg font-semibold mt-8 mb-3">Your Teams</Text>
+        {teams.length === 0 ? (
+          <Text className="text-gray-500">No teams yet. Create one!</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {teams.map((team) => (
+              <TouchableOpacity
+                key={team._id}
+                className="mr-4 w-40 bg-gray-100 rounded-2xl p-5 items-center"
+                style={{ backgroundColor: team.color + "20" }} // e.g., #FF000020
+                onPress={() => console.log("Navigate to team", team._id)}
+              >
+                <View
+                  className="w-16 h-16 rounded-full mb-3"
+                  style={{ backgroundColor: team.color }}
+                />
+                <Text className="font-bold text-lg">{team.name}</Text>
+                <Text className="text-gray-600">
+                  {team.members.length} members
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Task Summary Cards */}
+        <Text className="text-lg font-semibold mt-8 mb-3">Task Overview</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <SummaryCard
+            count={taskSummary.todo}
+            label="To Do"
+            color="bg-yellow-100"
+          />
+          <SummaryCard
+            count={taskSummary.inProgress}
+            label="In Progress"
+            color="bg-blue-100"
+          />
+          <SummaryCard
+            count={taskSummary.done}
+            label="Done"
+            color="bg-green-100"
+          />
+          <SummaryCard
+            count={taskSummary.overdue}
+            label="Overdue"
+            color="bg-red-100"
+          />
+          <SummaryCard
+            count={taskSummary.upcoming}
+            label="Upcoming"
+            color="bg-purple-100"
+          />
+        </ScrollView>
+
+        {/* Recent Projects */}
+        <Text className="text-lg font-semibold mt-8 mb-3">Recent Projects</Text>
+        {projects.length === 0 ? (
+          <Text className="text-gray-500">No projects yet</Text>
+        ) : (
+          <View>
+            {projects.slice(0, 5).map((project) => (
+              <TouchableOpacity
+                key={project._id}
+                className="bg-gray-50 rounded-2xl p-5 mb-4 border-l-4 border-blue-500"
+                onPress={() =>
+                  router.push({
+                    pathname: "/details/[projectId]",
+                    params: { projectId: project._id },
+                  })
+                }
+              >
+                <Text className="font-bold text-lg">{project.name}</Text>
+                <Text className="text-gray-600">
+                  {project.tasks?.filter((t: any) => t.isActive).length || 0}{" "}
+                  active tasks
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
+
+// Reusable summary card component
+const SummaryCard = ({
+  count,
+  label,
+  color,
+}: {
+  count: number;
+  label: string;
+  color: string;
+}) => (
+  <View className={`${color} rounded-2xl p-5 w-32 items-center mr-4`}>
+    <Text className="text-3xl font-bold">{count}</Text>
+    <Text className="text-gray-700 font-medium">{label}</Text>
+  </View>
+);

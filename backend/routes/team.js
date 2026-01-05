@@ -19,9 +19,9 @@ if (process.env.NODE_ENV === "development" && process.env.BYPASS_AUTH === "true"
 
 // Routes
 // Create team
-teamsRouter.post("/create-team", teamController.createTeam);
+teamsRouter.post("/", teamController.createTeam);
 // Get all teams
-teamsRouter.get("/all-teams", teamController.getAllTeams);
+teamsRouter.get("/", teamController.getAllTeams);
 // Search teams
 teamsRouter.get("/search", teamController.searchTeams);
 // Get team by ID
@@ -29,7 +29,7 @@ teamsRouter.get("/:id", teamController.getTeamById);
 // Update team
 teamsRouter.put("/:id", teamController.updateTeam);
 // Delete team
-teamsRouter.delete("/:id/delete-team", teamController.deleteTeam);
+teamsRouter.delete("/:id", teamController.deleteTeam);
 // Add member
 teamsRouter.put("/:id/add-member", teamController.addMember);
 // Remove member by email (most user-friendly)
