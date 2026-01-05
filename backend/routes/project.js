@@ -19,8 +19,8 @@ const projectRouter = express.Router();
 
 // 1. Auth middleware for the entire router
 if (
-  process.env.NODE_ENV === "production" &&
-  process.env.BYPASS_AUTH === "false"
+  process.env.NODE_ENV === "development" &&
+  process.env.BYPASS_AUTH === "true"
 ) {
   projectRouter.use(devBypassAuth);
   console.log("🔓 Development auth bypass ENABLED");
@@ -31,19 +31,19 @@ if (
 }
 
 // 2. Routes that do NOT need project access check
-projectRouter.post("/teams/:teamId/projects", createProject);
-projectRouter.get("/teams/:teamId/projects", getProjectsByTeam);
+projectRouter.post("/teams/:teamId", createProject);
+projectRouter.get("/teams/:teamId", getProjectsByTeam);
 projectRouter.get("/search", searchProjects);
 
 // 3. Roues that operate on SPECIFIC projects and need access check -> use requireProjectAccess
-projectRouter.get("/projects/:projectId", requireProjectAccess, getProjectById);
+projectRouter.get("/:projectId", requireProjectAccess, getProjectById);
 projectRouter.put(
-  "/:teamId/projects/:projectId",
+  "/teams/:teamId/:projectId",
   requireProjectAccess,
   updateProject
 );
 projectRouter.delete(
-  "/teams/:teamId/projects/:projectId",
+  "/teams/:teamId/:projectId",
   requireProjectAccess,
   deleteProject
 );

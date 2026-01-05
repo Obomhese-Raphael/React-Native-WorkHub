@@ -8,7 +8,7 @@ dotenv.config();
 const teamsRouter = express.Router();
 
 // Auth middleware
-if (process.env.NODE_ENV === "production" && process.env.BYPASS_AUTH === "false") {
+if (process.env.NODE_ENV === "development" && process.env.BYPASS_AUTH === "true") {
   teamsRouter.use(devBypassAuth);
   console.log("🔓 Development auth bypass ENABLED");
 } else {

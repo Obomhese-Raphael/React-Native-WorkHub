@@ -16,11 +16,7 @@ const PORT = process.env.PORT;
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:19006",           // Expo dev
-      "https://your-expo-dev-client.app", // If using custom dev client
-      // Vercel allows all in production often, but be specific for security
-    ],
+    origin: true,
     credentials: true,
   })
 );
@@ -30,8 +26,8 @@ if (!process.env.MONGODB_URI) {
   throw new Error("❌ MONGODB_URI is missing. Check your .env file.");
 }
 
-// Routes 
-app.use("/api/projects", projectRouter);
+// Routes
+app.use("/api", projectRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/teams", teamsRouter);
 app.get("/api/tasks/search", requireAuth, getUserInfo, searchTasks);

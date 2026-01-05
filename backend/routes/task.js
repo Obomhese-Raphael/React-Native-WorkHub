@@ -15,8 +15,8 @@ const taskRouter = express.Router();
 
 // Global auth
 if (
-  process.env.NODE_ENV === "production" &&
-  process.env.BYPASS_AUTH === "false"
+  process.env.NODE_ENV === "development" &&
+  process.env.BYPASS_AUTH === "true"
 ) {
   taskRouter.use(devBypassAuth);
 } else {

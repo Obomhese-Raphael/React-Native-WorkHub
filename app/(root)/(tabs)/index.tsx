@@ -6,12 +6,12 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -40,9 +40,9 @@ type TaskSummary = {
 
 export default function HomeScreen() {
   const { getToken } = useAuth();
-  const { user } = useUser(); 
+  const { user } = useUser();
   const [greeting, setGreeting] = useState("");
-  const [teams, setTeams] = useState<Team[]>([]);     
+  const [teams, setTeams] = useState<Team[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskSummary, setTaskSummary] = useState<TaskSummary>({
     todo: 0,
@@ -67,7 +67,7 @@ export default function HomeScreen() {
 
       // Safely get Clerk token inside component
       const token = await getToken();
-      console.log("Clerk token obtained in HomeScreen: ", token);
+      console.log("Clerk token:", token ? "Present" : "Missing"); // ← Add this
       if (!token) {
         throw new Error("Not authenticated");
       }
@@ -87,7 +87,7 @@ export default function HomeScreen() {
       // Loop through each team to get its projects
       for (const team of userTeams) {
         try {
-          const projectsRes = await api(`/teams/${team._id}/projects`, token);
+          const projectsRes = await api(`/teams/${team._id}`, token);
           const teamProjects = projectsRes.data || [];
 
           // Add projects to list
