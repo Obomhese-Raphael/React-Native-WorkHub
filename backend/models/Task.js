@@ -1,3 +1,4 @@
+// backend/models/Task.js
 import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema({
@@ -6,46 +7,78 @@ const taskSchema = new mongoose.Schema({
     ref: "project",
     required: true,
   },
-  name: {
+  title: {
     type: String,
-    required: [true, "Task name is required"],
+    required: [true, "Task title is required"],
     trim: true,
-    minlength: [2, "Task name must be at least 2 characters"],
-    maxlength: [200, "Task name cannot exceed 200 characters"],
+    minlength: [1, "Title must not be empty"],
+    maxlength: [200, "Title too long"],
   },
   description: {
     type: String,
     trim: true,
-    maxlength: [1000, "Description cannot exceed 1000 characters"],
-  },
-  createdBy: {
-    type: String, // userId
-    required: true,
+    maxlength: [1000, "Description too long"],
   },
   status: {
     type: String,
-    enum: ["todo", "in-progress", "review", "blocked", "completed", "archived", "on-hold"],
+    enum: ["todo", "in-progress", "done"],
     default: "todo",
+  },
+  assignees: [
+    {
+      userId: {
+        type: String, // Clerk userId
+        required: false,
+        default: null,
+      },
+      email: {
+        type: String,
+        lowercase: true,
+        required: false,
+      },
+      name: {
+        type: String,
+        default: "Unknown User",
+      },
+      assignedBy: {
+        type: String, // Who assigned them
+        required: true,
+      },
+      assignedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+  dueDate: {
+    type: Date,
+    default: null,
   },
   priority: {
     type: String,
-    enum: ["low", "medium", "high", "critical"],
+    enum: ["low", "medium", "high", "urgent"],
     default: "medium",
   },
-  dueDate: {
-    type: Date,
+  order: {
+    type: Number,
+    default: 0, // For drag-and-drop sorting
   },
-  assignedMembers: [
-    {
-      userId: { type: String },
-      name: { type: String, required: true },
-      email: { type: String, required: true, lowercase: true, trim: true },
-      role: { type: String, default: "assignee" },
-    },
-  ],
-  isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
+  createdBy: {
+    type: String, // Clerk userId
+    required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 taskSchema.pre("save", function (next) {
@@ -53,5 +86,10 @@ taskSchema.pre("save", function (next) {
   next();
 });
 
+// Compound index for fast queries
+taskSchema.index({ projectId: 1, isActive: 1 });
+taskSchema.index({ projectId: 1, status: 1 });
+
 const taskModel = mongoose.models.task || mongoose.model("task", taskSchema);
+
 export default taskModel;

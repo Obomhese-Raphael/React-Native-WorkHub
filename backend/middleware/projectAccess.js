@@ -16,10 +16,21 @@ export const requireProjectAccess = async (req, res, next) => {
       return res.status(403).json({ success: false, error: "Access denied to project" });
     }
 
-    // Attach for use in controllers
-    req.project = project;
-    req.projectTeam = team;
+    // ← THIS IS THE KEY ADDITION
+    // Attach an enriched project object with populated members for controllers
+    req.project = {
+      ...project.toObject(), // Convert Mongoose doc to plain object
+      projectMembers: team.members.map(member => ({
+        userId: member.userId || null,        // Keep real userId when exists
+        name: member.name || "Unknown User",
+        email: member.email || "no-email@workhub.app",
+        role: member.role || "member",
+        joinedAt: member.joinedAt,
+      })),
+    };
 
+    // Optional: also attach the full team if needed elsewhere
+    req.projectTeam = team;
     next();
   } catch (error) {
     console.error("Project access middleware error:", error);

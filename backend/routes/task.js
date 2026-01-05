@@ -1,29 +1,52 @@
 import express from "express";
 import {
+  archiveTask,
   createTask,
-  getTasksByProject,
-  updateTask,
   deleteTask,
-  searchTasks,
+  getTaskById,
+  getTasksByProject,
+  reorderTasks,
+  updateTask
 } from "../controllers/taskController.js";
+import { devBypassAuth, getUserInfo, requireAuth } from "../middleware/auth.js";
+import { requireProjectAccess } from "../middleware/projectAccess.js";
 
 const taskRouter = express.Router();
 
-// Create a task under a project
-taskRouter.post("/:projectId/create", createTask);
+// Global auth
+if (
+  process.env.NODE_ENV === "development" &&
+  process.env.BYPASS_AUTH === "true"
+) {
+  taskRouter.use(devBypassAuth);
+} else {
+  taskRouter.use(requireAuth);
+  taskRouter.use(getUserInfo);
+}
 
-// Search for a task with its name
-taskRouter.get("/search", searchTasks);
+// Mount all task routes under /teams/:teamId/projects/:projectId
+taskRouter
+  .route("/teams/:teamId/projects/:projectId/tasks")
+  .post(requireProjectAccess, createTask)
+  .get(requireProjectAccess, getTasksByProject);
 
-// Get all tasks for a project
-taskRouter.get("/:projectId", getTasksByProject);
+taskRouter
+  .route("/teams/:teamId/projects/:projectId/tasks/:taskId")
+  .get(requireProjectAccess, getTaskById);
 
-// Update a task
-taskRouter.put("/:taskId", updateTask);
+taskRouter
+  .route("/teams/:teamId/projects/:projectId/reorder")
+  .patch(requireProjectAccess, reorderTasks);
 
-// Delete a task
-taskRouter.delete("/:taskId", deleteTask);
+taskRouter
+  .route("/teams/:teamId/projects/:projectId/tasks/:taskId/archive")
+  .patch(requireProjectAccess, archiveTask);
 
-
+taskRouter
+  .route("/teams/:teamId/projects/:projectId/tasks/:taskId")
+  .put(requireProjectAccess, updateTask)
+  .delete(requireProjectAccess, deleteTask);
 
 export default taskRouter;
+
+// ISSUE - CREATING TASKS IS FAILING DUE TO URL MISMATCH
