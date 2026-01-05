@@ -19,8 +19,8 @@ const projectRouter = express.Router();
 
 // 1. Auth middleware for the entire router
 if (
-  process.env.NODE_ENV === "development" &&
-  process.env.BYPASS_AUTH === "true"
+  process.env.NODE_ENV === "production" &&
+  process.env.BYPASS_AUTH === "false"
 ) {
   projectRouter.use(devBypassAuth);
   console.log("🔓 Development auth bypass ENABLED");

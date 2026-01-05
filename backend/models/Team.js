@@ -40,7 +40,7 @@ const teamSchema = new mongoose.Schema({
     trim: true,
     maxlength: [200, "Description cannot exceed 200 characters"],
   },
-  createdBy: {
+  createdBy: { 
     type: String, // user ID
     required: [true, "Team creator is required"],
   },

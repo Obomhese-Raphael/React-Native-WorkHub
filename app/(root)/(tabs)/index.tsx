@@ -40,9 +40,9 @@ type TaskSummary = {
 
 export default function HomeScreen() {
   const { getToken } = useAuth();
-  const { user } = useUser();
+  const { user } = useUser(); 
   const [greeting, setGreeting] = useState("");
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);     
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskSummary, setTaskSummary] = useState<TaskSummary>({
     todo: 0,
@@ -67,6 +67,7 @@ export default function HomeScreen() {
 
       // Safely get Clerk token inside component
       const token = await getToken();
+      console.log("Clerk token obtained in HomeScreen: ", token);
       if (!token) {
         throw new Error("Not authenticated");
       }
