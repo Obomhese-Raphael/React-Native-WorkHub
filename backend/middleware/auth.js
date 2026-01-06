@@ -2,10 +2,21 @@
 // Keep devBypassAuth if needed
 
 import clerkClient from "@clerk/clerk-sdk-node"; // if you still want to fetch extra user data
-import { requireAuth as clerkRequireAuth, getAuth } from "@clerk/express";
+import { getAuth } from "@clerk/express";
 
-// Use Clerk's strict auth (returns 401 if not authenticated)
-export const requireAuth = clerkRequireAuth();
+// Strict auth: returns 401 JSON for API routes (perfect for your use case)
+export const requireAuth = (req, res, next) => {
+  const auth = getAuth(req);
+  if (!auth.userId) {
+    return res.status(401).json({
+      success: false,
+      error: "Authentication required",
+    });
+  }
+  // Optionally attach userId for convenience
+  req.userId = auth.userId;
+  next();
+};
 
 // Optional: Middleware to fetch extra user info (if you need name/email/image beyond req.auth)
 export const getUserInfo = async (req, res, next) => {
