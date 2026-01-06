@@ -75,10 +75,18 @@ export const createProject = async (req, res) => {
 };
 // Get projects by team - Done ✅
 export const getProjectsByTeam = async (req, res) => {
+  console.log("🔥 DIRECT HIT: getProjectsByTeam called – no middleware block");
+  console.log("User ID:", req.userId);
+  console.log("Team ID:", req.params.teamId);
   try {
     const { teamId } = req.params;
     const userId = req.userId;
     console.log("Fetching projects for team:", teamId, "by user:", userId);
+
+    // ✅ Add this at the very top
+    if (!mongoose.isValidObjectId(teamId)) {
+      return res.status(400).json({ success: false, error: "Invalid team ID" });
+    }
 
     // === Auth Check ===
     if (!userId) {
@@ -106,6 +114,11 @@ export const getProjectsByTeam = async (req, res) => {
     // === Fetch active projects for the team ===
     const projects = await projectModel
       .find({ teamId: team._id, isActive: true })
+      .populate({
+        path: "tasks",
+        match: { isActive: true },
+        select: "status dueDate isActive",
+      })
       .sort({ createdAt: -1 }) // Newest first
       .select("-__v") // Optional: exclude version key
       .lean(); // Faster, plain JS objects
@@ -572,18 +585,28 @@ export const updateProjectMemberRole = async (req, res) => {
     const { userId: providedUserId, email: providedEmail, role } = req.body;
     const currentUserId = req.userId;
 
-    if (!currentUserId) return res.status(401).json({ success: false, error: "Unauthorized" });
+    if (!currentUserId)
+      return res.status(401).json({ success: false, error: "Unauthorized" });
 
     if (!["owner", "editor", "viewer"].includes(role)) {
       return res.status(400).json({ success: false, error: "Invalid role" });
     }
 
     if (!providedUserId && !providedEmail) {
-      return res.status(400).json({ success: false, error: "userId or email required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "userId or email required" });
     }
 
-    const project = await projectModel.findOne({ _id: projectId, teamId, isActive: true });
-    if (!project) return res.status(404).json({ success: false, error: "Project not found" });
+    const project = await projectModel.findOne({
+      _id: projectId,
+      teamId,
+      isActive: true,
+    });
+    if (!project)
+      return res
+        .status(404)
+        .json({ success: false, error: "Project not found" });
 
     const team = await teamModel.findById(teamId);
     if (!team?.isUserMember(currentUserId)) {
@@ -594,14 +617,23 @@ export const updateProjectMemberRole = async (req, res) => {
     if (providedUserId) {
       targetUserId = providedUserId;
     } else {
-      const member = team.members.find(m => m.email.toLowerCase() === providedEmail.toLowerCase().trim());
-      if (!member || !member.userId) return res.status(404).json({ success: false, error: "User not found" });
+      const member = team.members.find(
+        (m) => m.email.toLowerCase() === providedEmail.toLowerCase().trim()
+      );
+      if (!member || !member.userId)
+        return res
+          .status(404)
+          .json({ success: false, error: "User not found" });
       targetUserId = member.userId;
     }
 
-    const member = project.projectMembers.find(m => m.userId === targetUserId);
+    const member = project.projectMembers.find(
+      (m) => m.userId === targetUserId
+    );
     if (!member) {
-      return res.status(404).json({ success: false, error: "User not a project member" });
+      return res
+        .status(404)
+        .json({ success: false, error: "User not a project member" });
     }
 
     member.role = role;
@@ -624,10 +656,18 @@ export const listProjectMembers = async (req, res) => {
     const { teamId, projectId } = req.params;
     const userId = req.userId;
 
-    if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+    if (!userId)
+      return res.status(401).json({ success: false, error: "Unauthorized" });
 
-    const project = await projectModel.findOne({ _id: projectId, teamId, isActive: true });
-    if (!project) return res.status(404).json({ success: false, error: "Project not found" });
+    const project = await projectModel.findOne({
+      _id: projectId,
+      teamId,
+      isActive: true,
+    });
+    if (!project)
+      return res
+        .status(404)
+        .json({ success: false, error: "Project not found" });
 
     const team = await teamModel.findById(teamId);
     if (!team?.isUserMember(userId)) {

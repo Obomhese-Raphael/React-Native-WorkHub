@@ -6,7 +6,7 @@ import {
   getTaskById,
   getTasksByProject,
   reorderTasks,
-  updateTask
+  updateTask,
 } from "../controllers/taskController.js";
 import { devBypassAuth, getUserInfo, requireAuth } from "../middleware/auth.js";
 import { requireProjectAccess } from "../middleware/projectAccess.js";
@@ -24,28 +24,24 @@ if (
   taskRouter.use(getUserInfo);
 }
 
-// Mount all task routes under /teams/:teamId/projects/:projectId
 taskRouter
-  .route("/teams/:teamId/projects/:projectId/tasks")
+  .route("/:projectId/tasks")
   .post(requireProjectAccess, createTask)
   .get(requireProjectAccess, getTasksByProject);
 
 taskRouter
-  .route("/teams/:teamId/projects/:projectId/tasks/:taskId")
-  .get(requireProjectAccess, getTaskById);
-
-taskRouter
-  .route("/teams/:teamId/projects/:projectId/reorder")
-  .patch(requireProjectAccess, reorderTasks);
-
-taskRouter
-  .route("/teams/:teamId/projects/:projectId/tasks/:taskId/archive")
-  .patch(requireProjectAccess, archiveTask);
-
-taskRouter
-  .route("/teams/:teamId/projects/:projectId/tasks/:taskId")
+  .route("/:projectId/tasks/:taskId")
+  .get(requireProjectAccess, getTaskById)
   .put(requireProjectAccess, updateTask)
   .delete(requireProjectAccess, deleteTask);
+
+taskRouter.patch(
+  "/:projectId/tasks/:taskId/archive",
+  requireProjectAccess,
+  archiveTask
+);
+
+taskRouter.patch("/:projectId/reorder", requireProjectAccess, reorderTasks);
 
 export default taskRouter;
 

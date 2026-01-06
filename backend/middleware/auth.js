@@ -1,4 +1,4 @@
-import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
+import clerkClient, { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
 
 // Require authentication with error logging
 const requireAuth = ClerkExpressRequireAuth({
@@ -8,13 +8,51 @@ const requireAuth = ClerkExpressRequireAuth({
 });
 
 // Extract user info from authenticated request
-const getUserInfo = (req, res, next) => {
+// const getUserInfo = (req, res, next) => {
+//   try {
+//     if (req.auth && req.auth.userId) {
+//       req.userId = req.auth.userId;
+//       req.userEmail = req.auth.claims?.email || null;
+//       req.userName =
+//         req.auth.claims?.name || req.auth.claims?.firstName || null;
+//       next();
+//     } else {
+//       return res.status(401).json({
+//         success: false,
+//         error: "Authentication required",
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Auth middleware error:", error);
+//     res.status(401).json({
+//       success: false,
+//       error: "Invalid authentication token",
+//     });
+//   }
+// };
+
+// Extract user info from authenticated request
+const getUserInfo = async (req, res, next) => {
+  console.log("🔵 getUserInfo middleware triggered for userId: ", req.auth?.userId);
+  console.log("Auth info:", req.auth);
   try {
     if (req.auth && req.auth.userId) {
       req.userId = req.auth.userId;
-      req.userEmail = req.auth.claims?.email || null;
+
+      // Fetch full user from Clerk for real name/email/image
+      const clerkUser = await clerkClient.users.getUser(req.auth.userId);
+
+      console.log("Clerk user fetched in getUserInfo:", clerkUser);
       req.userName =
-        req.auth.claims?.name || req.auth.claims?.firstName || null;
+        `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+        clerkUser.username ||
+        "User";
+      req.userEmail =
+        clerkUser.primaryEmailAddressId?.emailAddress || "no-email@workhub.app";
+
+      // Bonus: Save image for future avatar use
+      req.userImage = clerkUser.imageUrl;
+
       next();
     } else {
       return res.status(401).json({
@@ -23,10 +61,10 @@ const getUserInfo = (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error("Auth middleware error:", error);
-    res.status(401).json({
+    console.error("🔴 Failed to fetch Clerk user info:", error.message);
+    return res.status(401).json({
       success: false,
-      error: "Invalid authentication token",
+      error: "Invalid authentication",
     });
   }
 };

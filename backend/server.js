@@ -27,7 +27,7 @@ if (!process.env.MONGODB_URI) {
 }
 
 // Routes
-app.use("/api", projectRouter);
+app.use("/api/projects", projectRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/teams", teamsRouter);
 app.get("/api/tasks/search", requireAuth, getUserInfo, searchTasks);
@@ -43,7 +43,9 @@ app.listen(PORT, () => {
 // MongoDB connection
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB"))
+  .then(() => {
+    console.log("Connected to MongoDB");
+  })
   .catch((err) => console.error(err));
 
 // ✅ Export for Vercel

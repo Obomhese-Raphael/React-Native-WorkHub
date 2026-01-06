@@ -1,5 +1,5 @@
-// routes/project.js
 import express from "express";
+import mongoose from "mongoose";
 import {
   addMemberToProject,
   createProject,
@@ -12,62 +12,160 @@ import {
   updateProject,
   updateProjectMemberRole,
 } from "../controllers/projectController.js";
-import { devBypassAuth, getUserInfo, requireAuth } from "../middleware/auth.js";
-import { requireProjectAccess } from "../middleware/projectAccess.js";
+
+import { getUserInfo } from "../middleware/auth.js";
 
 const projectRouter = express.Router();
 
-// 1. Auth middleware for the entire router
-if (
-  process.env.NODE_ENV === "development" &&
-  process.env.BYPASS_AUTH === "true"
-) {
-  projectRouter.use(devBypassAuth);
-  console.log("🔓 Development auth bypass ENABLED");
-} else {
-  projectRouter.use(requireAuth);
-  projectRouter.use(getUserInfo);
-  console.log("🔒 Real Clerk auth ENABLED");
-}
+// ====================
+// Projects Routes
+// ====================
 
-// 2. Routes that do NOT need project access check
-projectRouter.post("/teams/:teamId", createProject);
-projectRouter.get("/teams/:teamId", getProjectsByTeam);
-projectRouter.get("/search", searchProjects);
+// Create a new project under a team
+projectRouter.post(
+  "/team/:teamId",
+  getUserInfo,
+  async (req, res, next) => {
+    const { teamId } = req.params;
+    if (!mongoose.isValidObjectId(teamId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid team ID" });
+    }
+    next();
+  },
+  createProject
+);
 
-// 3. Roues that operate on SPECIFIC projects and need access check -> use requireProjectAccess
-projectRouter.get("/:projectId", requireProjectAccess, getProjectById);
+// Get all projects by team
+projectRouter.get(
+  "/team/:teamId",
+  getUserInfo,
+  async (req, res, next) => {
+    const { teamId } = req.params;
+    if (!mongoose.isValidObjectId(teamId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid team ID" });
+    }
+    next();
+  },
+  getProjectsByTeam
+);
+
+// Get project by ID
+projectRouter.get(
+  "/:projectId",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
+  getProjectById
+);
+
+// Update project
 projectRouter.put(
-  "/teams/:teamId/:projectId",
-  requireProjectAccess,
+  "/:projectId",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   updateProject
 );
+
+// Delete project
 projectRouter.delete(
-  "/teams/:teamId/:projectId",
-  requireProjectAccess,
+  "/:projectId",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   deleteProject
 );
 
-// 4. Project Member Management Routes (all need specific project access)
+// Add project member
 projectRouter.post(
-  "/teams/:teamId/projects/:projectId/members",
-  requireProjectAccess,
+  "/:projectId/members",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   addMemberToProject
 );
+
+// Remove project member
 projectRouter.delete(
-  "/teams/:teamId/projects/:projectId/members",
-  requireProjectAccess,
+  "/:projectId/members",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   removeMemberFromProject
 );
-// Update project member role
+
+// Update member role
 projectRouter.patch(
-  "/teams/:teamId/projects/:projectId/members/role",
-  requireProjectAccess,
+  "/:projectId/members/role",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   updateProjectMemberRole
 );
+
+// List project members
 projectRouter.get(
-  "/teams/:teamId/projects/:projectId/members",
-  requireProjectAccess,
+  "/:projectId/members",
+  getUserInfo,
+  async (req, res, next) => {
+    const { projectId } = req.params;
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid project ID" });
+    }
+    next();
+  },
   listProjectMembers
 );
+
+// Search projects
+projectRouter.get("/search", getUserInfo, searchProjects);
+
 export default projectRouter;

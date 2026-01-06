@@ -40,10 +40,11 @@ const createTeam = async (req, res) => {
 
 // Get All Teams - Done ✅
 const getAllTeams = async (req, res) => {
+  console.log("🔥 DIRECT HIT: getAllTeams called – no middleware block");
+  console.log(" getAllTeams called for User ID:", req.userId);
   try {
-    const teams = await teamModel
-      .find({ isActive: true })
-      .sort({ createdAt: -1 });
+    const userId = req.userId;
+    const teams = await teamModel.findByUser(userId);
 
     res.json({ success: true, data: teams });
   } catch (error) {
@@ -194,8 +195,6 @@ const deleteTeam = async (req, res) => {
 
 // Delete Member by Email - THIS IS NOT DONE YET ❌
 const deleteMember = async (req, res) => {
-  console.log("auth:", req.auth);
-
   try {
     const { id: teamId, email: memberEmail } = req.params;
 
@@ -218,7 +217,7 @@ const deleteMember = async (req, res) => {
     }
 
     // Check if current user is admin (important!)
-    const currentUserId = req.auth?.userId;
+    const currentUserId = req.userId;
 
     if (!currentUserId) {
       return res.status(401).json({
