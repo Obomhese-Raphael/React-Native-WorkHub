@@ -2,6 +2,7 @@
 import dotenv from "dotenv";
 dotenv.config(); // ← Move this RIGHT AFTER the dotenv import
 
+import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
@@ -21,10 +22,12 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(clerkMiddleware());
 
 if (!process.env.MONGODB_URI) {
   throw new Error("❌ MONGODB_URI is missing. Check your .env file.");
 }
+
 
 // Routes
 app.use("/api/projects", projectRouter);
@@ -34,6 +37,20 @@ app.get("/api/tasks/search", requireAuth, getUserInfo, searchTasks);
 
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
+});
+
+// Debug route to check if Clerk auth is working
+app.get("/api/debug-auth", (req, res) => {
+  res.json({
+    message: "Auth debug endpoint",
+    auth: req.auth || null,
+    userId: req.auth?.userId || null,
+    sessionClaims: req.auth?.sessionClaims || null,
+    headersReceived: {
+      authorization: req.headers.authorization ? "Present (Bearer token sent)" : "Missing",
+    },
+    rawHeaders: req.headers.authorization,
+  });
 });
 
 app.listen(PORT, () => {

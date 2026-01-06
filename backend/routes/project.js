@@ -13,7 +13,7 @@ import {
   updateProjectMemberRole,
 } from "../controllers/projectController.js";
 
-import { getUserInfo } from "../middleware/auth.js";
+import { getUserInfo, requireAuth } from "../middleware/auth.js";
 
 const projectRouter = express.Router();
 
@@ -24,13 +24,12 @@ const projectRouter = express.Router();
 // Create a new project under a team
 projectRouter.post(
   "/team/:teamId",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { teamId } = req.params;
     if (!mongoose.isValidObjectId(teamId)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid team ID" });
+      return res.status(400).json({ success: false, error: "Invalid team ID" });
     }
     next();
   },
@@ -40,13 +39,12 @@ projectRouter.post(
 // Get all projects by team
 projectRouter.get(
   "/team/:teamId",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { teamId } = req.params;
     if (!mongoose.isValidObjectId(teamId)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid team ID" });
+      return res.status(400).json({ success: false, error: "Invalid team ID" });
     }
     next();
   },
@@ -56,6 +54,7 @@ projectRouter.get(
 // Get project by ID
 projectRouter.get(
   "/:projectId",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -72,6 +71,7 @@ projectRouter.get(
 // Update project
 projectRouter.put(
   "/:projectId",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -88,6 +88,7 @@ projectRouter.put(
 // Delete project
 projectRouter.delete(
   "/:projectId",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -104,6 +105,7 @@ projectRouter.delete(
 // Add project member
 projectRouter.post(
   "/:projectId/members",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -120,6 +122,7 @@ projectRouter.post(
 // Remove project member
 projectRouter.delete(
   "/:projectId/members",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -136,6 +139,7 @@ projectRouter.delete(
 // Update member role
 projectRouter.patch(
   "/:projectId/members/role",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -152,6 +156,7 @@ projectRouter.patch(
 // List project members
 projectRouter.get(
   "/:projectId/members",
+  requireAuth,
   getUserInfo,
   async (req, res, next) => {
     const { projectId } = req.params;
@@ -166,6 +171,6 @@ projectRouter.get(
 );
 
 // Search projects
-projectRouter.get("/search", getUserInfo, searchProjects);
+projectRouter.get("/search", requireAuth, getUserInfo, searchProjects);
 
 export default projectRouter;

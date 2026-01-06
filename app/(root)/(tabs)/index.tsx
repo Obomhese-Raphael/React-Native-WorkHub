@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -20,8 +21,8 @@ type Team = {
   name: string;
   color: string;
   members: { name: string }[];
-}; 
- 
+};
+
 type Project = {
   _id: string;
   name: string;
@@ -54,55 +55,60 @@ export default function HomeScreen() {
   });
   const [loading, setLoading] = useState(true);
 
+  // 1. Log Token Function (Moved here so the button can find it!)
+  const logToken = async () => {
+    try {
+      const token = await getToken();
+      console.log("Clerk Token Debug:", token);
+      Alert.alert("Token Logged", "Check your terminal/console for the JWT.");
+    } catch (err) {
+      console.error("Failed to get token:", err);
+    }
+  };
+
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Morning");
     else if (hour < 18) setGreeting("Afternoon");
     else setGreeting("Evening");
-  }, []);  
+  }, []);
 
-  const fetchHomeData = async () => { 
-    try {  
+  const fetchHomeData = async () => {
+    try {
       setLoading(true);
- 
+
       // Safely get Clerk token inside component
-      const token = await getToken();   
+      const token = await getToken();
       console.log("Clerk Token:", token);
-      if (!token) { 
-        throw new Error("Not authenticated"); 
+      if (!token) {
+        throw new Error("Not authenticated");
       }
 
-      // 1. Fetch user's teams  
+      // 1. Fetch user's teams
       const teamsRes = await api("/teams", token);
-      console.log("Teams Response:", teamsRes);
-      console.log("User ID from clerk:", user?.id);
-      const userTeams: Team[] = teamsRes.data || [];   
-      // Log to the console for debugging
-      console.log("Fetched Teams:", userTeams);
-      console.log("User ID from clerk:", user?.id); 
+
+      const userTeams: Team[] = teamsRes.data || [];
 
       setTeams(userTeams);
 
       // 2. Prepare to collect all projects and count tasks
       const allProjects: Project[] = [];
       let totalTodo = 0;
-      let totalInProgress = 0;           
-      let totalDone = 0; 
+      let totalInProgress = 0;
+      let totalDone = 0;
       let totalOverdue = 0;
 
       // Loop through each team to get its projects
-      for (const team of userTeams) { 
-        try { 
-          console.log("Team ID:", team._id);
-          console.log("User ID from clerk:", user?.id);
+      for (const team of userTeams) {
+        try {
           const projectsRes = await api(`/projects/team/${team._id}`, token);
-          console.log(`Projects for team ${team.name}:`, projectsRes.data);
+          console.log(`Projects for team ${team.name}:`, projectsRes);
           const teamProjects = projectsRes.data || [];
- 
+
           // Add projects to list
           allProjects.push(...teamProjects);
- 
-          // Count tasks by status for summary 
+
+          // Count tasks by status for summary
           teamProjects.forEach((project: any) => {
             const activeTasks =
               project.tasks?.filter((t: any) => t.isActive) || [];
@@ -138,9 +144,9 @@ export default function HomeScreen() {
 
       // Update state with real data
       setProjects(allProjects);
- 
+
       setTaskSummary({
-        todo: totalTodo,   
+        todo: totalTodo,
         inProgress: totalInProgress,
         done: totalDone,
         overdue: totalOverdue,
@@ -148,7 +154,10 @@ export default function HomeScreen() {
         reminders: 1, // Placeholder — add real reminders later
       });
     } catch (error: any) {
-      console.error("Failed to load home data from Index.tsx:", error.message || error);
+      console.error(
+        "Failed to load home data from Index.tsx:",
+        error.message || error
+      );
       // Optional: show toast notification in the future
     } finally {
       setLoading(false);
@@ -271,6 +280,16 @@ export default function HomeScreen() {
             ))}
           </View>
         )}
+        <View>
+          <TouchableOpacity
+            onPress={logToken}
+            className="bg-indigo-600 px-6 py-3 rounded-xl active:bg-indigo-700"
+          >
+            <Text className="text-white font-bold text-base">
+              Log Clerk Token
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

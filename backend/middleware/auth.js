@@ -1,71 +1,29 @@
-import clerkClient, { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
+// Remove your custom requireAuth and getUserInfo
+// Keep devBypassAuth if needed
 
-// Require authentication with error logging
-const requireAuth = ClerkExpressRequireAuth({
-  onError: (error) => {
-    console.error("🔴 Clerk auth error:", error);
-  },
-});
+import clerkClient from "@clerk/clerk-sdk-node"; // if you still want to fetch extra user data
+import { requireAuth as clerkRequireAuth, getAuth } from "@clerk/express";
 
-// Extract user info from authenticated request
-// const getUserInfo = (req, res, next) => {
-//   try {
-//     if (req.auth && req.auth.userId) {
-//       req.userId = req.auth.userId;
-//       req.userEmail = req.auth.claims?.email || null;
-//       req.userName =
-//         req.auth.claims?.name || req.auth.claims?.firstName || null;
-//       next();
-//     } else {
-//       return res.status(401).json({
-//         success: false,
-//         error: "Authentication required",
-//       });
-//     }
-//   } catch (error) {
-//     console.error("Auth middleware error:", error);
-//     res.status(401).json({
-//       success: false,
-//       error: "Invalid authentication token",
-//     });
-//   }
-// };
+// Use Clerk's strict auth (returns 401 if not authenticated)
+export const requireAuth = clerkRequireAuth();
 
-// Extract user info from authenticated request
-const getUserInfo = async (req, res, next) => {
-  console.log("🔵 getUserInfo middleware triggered for userId: ", req.auth?.userId);
-  console.log("Auth info:", req.auth);
+// Optional: Middleware to fetch extra user info (if you need name/email/image beyond req.auth)
+export const getUserInfo = async (req, res, next) => {
+  const { userId } = getAuth(req); // or req.auth.userId
+  if (!userId) return next(); // should not reach here if requireAuth is before
+
   try {
-    if (req.auth && req.auth.userId) {
-      req.userId = req.auth.userId;
-
-      // Fetch full user from Clerk for real name/email/image
-      const clerkUser = await clerkClient.users.getUser(req.auth.userId);
-
-      console.log("Clerk user fetched in getUserInfo:", clerkUser);
-      req.userName =
-        `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
-        clerkUser.username ||
-        "User";
-      req.userEmail =
-        clerkUser.primaryEmailAddressId?.emailAddress || "no-email@workhub.app";
-
-      // Bonus: Save image for future avatar use
-      req.userImage = clerkUser.imageUrl;
-
-      next();
-    } else {
-      return res.status(401).json({
-        success: false,
-        error: "Authentication required",
-      });
-    }
+    const clerkUser = await clerkClient.users.getUser(userId);
+    req.userName =
+      `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+      clerkUser.username ||
+      "User";
+    req.userEmail = clerkUser.primaryEmailAddress?.emailAddress || "<no-email>";
+    req.userImage = clerkUser.imageUrl;
+    next();
   } catch (error) {
-    console.error("🔴 Failed to fetch Clerk user info:", error.message);
-    return res.status(401).json({
-      success: false,
-      error: "Invalid authentication",
-    });
+    console.error("Failed to fetch Clerk user:", error);
+    next();
   }
 };
 
@@ -80,5 +38,5 @@ const devBypassAuth = (req, res, next) => {
   next();
 };
 
-export { devBypassAuth, getUserInfo, requireAuth };
+export { devBypassAuth };
 
