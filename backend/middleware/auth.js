@@ -38,10 +38,10 @@ export const requireAuth = (req, res, next) => {
 //   }
 // };
 
-const getUserInfo = async (req, res, next) => {
+export const getUserInfo = async (req, res, next) => {
   console.log("🔵 getUserInfo triggered for userId:", req.auth?.userId);
 
-  try {
+  try { 
     if (req.auth && req.auth.userId) {
       req.userId = req.auth.userId;
 
