@@ -1,3 +1,4 @@
+import { RefreshProvider } from "@/context/RefreshContext";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache"; // assuming you're using this
 import { Stack } from "expo-router";
@@ -13,8 +14,10 @@ if (!PUBLISHABLE_KEY || !PUBLISHABLE_KEY.startsWith("pk_test_")) {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <Stack screenOptions={{ headerShown: false }} />
-    </ClerkProvider>
+    <RefreshProvider>
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY} tokenCache={tokenCache}>
+        <Stack screenOptions={{ headerShown: false }} />
+      </ClerkProvider>
+    </RefreshProvider>
   );
 }

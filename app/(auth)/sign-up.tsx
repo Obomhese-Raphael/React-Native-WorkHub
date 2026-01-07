@@ -1,19 +1,21 @@
-import icons from '@/constants/icons';
 import { useOAuth, useSignUp } from "@clerk/clerk-expo";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import React from "react";
+import React, { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
-    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -21,327 +23,188 @@ export default function SignUpScreen() {
     const { isLoaded, signUp, setActive } = useSignUp();
     const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
-    const [firstName, setFirstName] = React.useState("");
-    const [lastName, setLastName] = React.useState("");
-    const [email, setEmail] = React.useState("");
-    const [password, setPassword] = React.useState("");
-    const [pendingVerification, setPendingVerification] = React.useState(false);
-    const [code, setCode] = React.useState("");
-    const [loading, setLoading] = React.useState(false);
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [pendingVerification, setPendingVerification] = useState(false);
+    const [code, setCode] = useState("");
+    const [loading, setLoading] = useState(false);
+    
+    // New state for password visibility
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-    if (!isLoaded) return <ActivityIndicator size="large" className="flex-1" />;
+    if (!isLoaded) return (
+        <View className="flex-1 bg-[#0f172a] items-center justify-center">
+            <ActivityIndicator size="large" color="#3b82f6" />
+        </View>
+    );
 
     const handleEmailSignUp = async () => {
         if (!firstName || !lastName || !email || !password) {
-            Alert.alert("Error", "Please fill in all fields");
-            return;
+            return Alert.alert("Required", "All identification fields must be populated.");
         }
- 
-        if (password.length < 8) {
-            Alert.alert("Error", "Password must be at least 8 characters long");
-            return;
-        }
-
         setLoading(true);
         try {
-            // Create the user with name information
             await signUp.create({
                 emailAddress: email,
                 password: password,
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
             });
-
-            // Send the email verification code
-            await signUp.prepareEmailAddressVerification({
-                strategy: "email_code"
-            });
-
+            await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
             setPendingVerification(true);
-            Alert.alert("Success", "Verification code sent to your email!");
-        } catch (err) {
-            console.error("Sign up error:", err);
-            Alert.alert("Error", err.errors?.[0]?.message || "Failed to create account");
-            Toast.show({
-                type: 'error',          // success | error | info
-                text1: 'Try again',     // short message
-                visibilityTime: 2000,   // 2 seconds
-                position: 'bottom',     // top | bottom
-            });
+        } catch (err: any) {
+            Alert.alert("System Error", err.errors?.[0]?.message || "Failed to initialize identity");
         } finally {
             setLoading(false);
         }
     };
 
     const handleVerifyCode = async () => {
-        if (!code) {
-            Alert.alert("Error", "Please enter the verification code");
-            return;
-        }
-
         setLoading(true);
         try {
-            // Attempt to verify the email address
             const completeSignUp = await signUp.attemptEmailAddressVerification({
                 code: code.trim(),
             });
-
-            console.log("Verification result:", completeSignUp.status);
-
-            // Check if verification was successful
             if (completeSignUp.status === "complete") {
-                // Set the active session
                 await setActive({ session: completeSignUp.createdSessionId });
-
-                Alert.alert("Success", "Account created successfully!", [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            // Navigate to home or onboarding
-                            router.replace("/");
-                        }
-                    }
-                ]);
-            } else {
-                // Handle other statuses
-                console.log("Sign up not complete, status:", completeSignUp.status);
-                Alert.alert("Error", "Verification failed. Please try again.");
-            }
-        } catch (err) {
-            console.error("Verification error:", err);
-
-            // Handle specific error cases
-            if (err.errors?.[0]?.code === "verification_already_verified") {
-                Alert.alert(
-                    "Already Verified",
-                    "Your email is already verified. Completing sign up...",
-                    [
-                        {
-                            text: "OK",
-                            onPress: async () => {
-                                try {
-                                    // Try to complete the sign up
-                                    if (signUp.status === "complete") {
-                                        await setActive({ session: signUp.createdSessionId });
-                                        router.replace("/");
-                                    } else {
-                                        // Force complete the sign up
-                                        const result = await signUp.attemptEmailAddressVerification({
-                                            code: "000000" // Dummy code since it's already verified
-                                        });
-                                        if (result.createdSessionId) {
-                                            await setActive({ session: result.createdSessionId });
-                                            router.replace("/");
-                                        }
-                                    }
-                                } catch (finalErr) {
-                                    console.error("Final completion error:", finalErr);
-                                    Alert.alert("Error", "Please try signing in instead.");
-                                    router.push("/sign-in");
-                                }
-                            }
-                        }
-                    ]
-                );
-            } else {
-                Alert.alert("Error", err.errors?.[0]?.message || "Invalid verification code");
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoogleSignUp = async () => {
-        setLoading(true);
-        try {
-            const { createdSessionId, setActive: oauthSetActive } = await startOAuthFlow();
-
-            if (createdSessionId) {
-                await oauthSetActive({ session: createdSessionId });
                 router.replace("/");
             }
-        } catch (err) {
-            console.error("Google Sign-Up error:", err);
-            Alert.alert("Error", "Failed to sign up with Google");
+        } catch (err: any) {
+            Alert.alert("Error", err.errors?.[0]?.message || "Invalid sequence.");
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleResendCode = async () => {
-        setLoading(true);
-        try {
-            await signUp.prepareEmailAddressVerification({
-                strategy: "email_code"
-            });
-            Alert.alert("Success", "New verification code sent!");
-        } catch (err) {
-            console.error("Resend error:", err);
-            Alert.alert("Error", "Failed to resend code");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoBack = () => {
-        setPendingVerification(false);
-        setCode("");
-        // Keep the user's entered information when going back
     };
 
     return (
-        <SafeAreaView className="flex-1 items-center justify-center px-6 bg-white">
-            <View className="w-full max-w-sm">
-                <View className="w-10 h-10 self-center mb-6 border border-gray-300 rounded-full p-2">
-                    <Image
-                        source={icons.person}
-                        className="w-full h-full rounded-full"
-                        resizeMode="contain"
-                    />
-                </View>
-
-                <Text className="text-2xl font-bold text-center text-gray-800 mb-6">
-                    {pendingVerification ? "Verify Your Email ✉️" : "Create an Account ⚒️"}
-                </Text>
-
-                {pendingVerification ? (
-                    <>
-                        <Text className="text-gray-600 text-center mb-4">
-                            We've sent a verification code to {email}
-                        </Text>
-
-                        <TextInput
-                            value={code}
-                            onChangeText={setCode}
-                            placeholder="Enter 6-digit code"
-                            keyboardType="number-pad"
-                            maxLength={6}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4 text-gray-700 text-center text-lg tracking-widest"
-                            autoFocus
-                        />
-
-                        <TouchableOpacity
-                            onPress={handleVerifyCode}
-                            disabled={loading || code.length !== 6}
-                            className={`rounded-lg py-3 mb-4 ${loading || code.length !== 6
-                                ? "bg-gray-400"
-                                : "bg-blue-600"
-                                }`}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text className="text-white text-center font-semibold">
-                                    Verify Email
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-
-                        <View className="flex-row justify-between">
-                            <TouchableOpacity
-                                onPress={handleResendCode}
-                                disabled={loading}
-                                className="flex-1 mr-2"
+        <LinearGradient colors={["#0f172a", "#1e293b", "#0f172a"]} className="flex-1">
+            <SafeAreaView className="flex-1">
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === "ios" ? "padding" : "height"} 
+                    className="flex-1"
+                >
+                    <ScrollView className="px-8 pt-6" showsVerticalScrollIndicator={false}>
+                        {/* Header */}
+                        <View className="flex-row items-center justify-between mb-10">
+                            <TouchableOpacity 
+                                onPress={() => pendingVerification ? setPendingVerification(false) : router.back()}
+                                className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700"
                             >
-                                <Text className="text-blue-600 text-center font-medium">
-                                    Resend Code
-                                </Text>
+                                <Ionicons name="chevron-back" size={24} color="#94a3b8" />
                             </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={handleGoBack}
-                                disabled={loading}
-                                className="flex-1 ml-2"
-                            >
-                                <Text className="text-gray-600 text-center font-medium">
-                                    Go Back
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </>
-                ) : (
-                    <>
-                        {/* NAME FIELDS - Side by side */}
-                        <View className="flex-row space-x-3 mb-4 gap-3">
-                            <TextInput
-                                value={firstName}
-                                onChangeText={setFirstName}
-                                placeholder="First Name"
-                                className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-gray-700"
-                                autoCapitalize="words"
-                                autoComplete="given-name"
-                            />
-                            <TextInput
-                                value={lastName}
-                                onChangeText={setLastName}
-                                placeholder="Last Name"
-                                className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-gray-700"
-                                autoCapitalize="words"
-                                autoComplete="family-name"
-                            />
-                        </View>
-
-                        {/* EMAIL FIELD */}
-                        <TextInput
-                            value={email}
-                            onChangeText={setEmail}
-                            placeholder="Email"
-                            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4 text-gray-700"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            autoComplete="email"
-                        />
-
-                        {/* PASSWORD FIELD */}
-                        <TextInput
-                            value={password}
-                            onChangeText={setPassword}
-                            placeholder="Password (min 8 characters)"
-                            secureTextEntry
-                            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6 text-gray-700"
-                            autoComplete="new-password"
-                        />
-
-                        <TouchableOpacity
-                            onPress={handleEmailSignUp}
-                            disabled={loading}
-                            className={`rounded-lg py-3 mb-4 ${loading ? "bg-gray-400" : "bg-blue-600"
-                                }`}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text className="text-white text-center font-semibold">
-                                    Sign Up
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-
-                        <View className="flex-row items-center mb-4">
-                            <View className="flex-1 h-px bg-gray-300" />
-                            <Text className="px-2 text-gray-500">or</Text>
-                            <View className="flex-1 h-px bg-gray-300" />
-                        </View>
-
-                        <TouchableOpacity
-                            onPress={handleGoogleSignUp}
-                            disabled={loading}
-                            className="bg-white border border-gray-300 rounded-lg py-3 flex flex-row items-center justify-center"
-                        >
-                            <Text className="text-black font-medium">
-                                Continue with Google
+                            <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-[4px]">
+                                Identity.Nexus
                             </Text>
-                        </TouchableOpacity>
-
-                        <View className="flex-row justify-center mt-8">
-                            <Text className="text-gray-500">Already have an account?</Text>
-                            <TouchableOpacity onPress={() => router.push("/sign-in")}>
-                                <Text className="text-blue-600 font-semibold ml-1">Sign In</Text>
-                            </TouchableOpacity>
+                            <View className="w-12" />
                         </View>
-                    </>
-                )}
-            </View>
-        </SafeAreaView>
+
+                        <View className="mb-10">
+                            <Text className="text-4xl font-black text-white tracking-tight">
+                                {pendingVerification ? "Verify Email" : "New Account"}
+                            </Text>
+                            <Text className="text-slate-400 mt-2 font-medium">
+                                {pendingVerification ? `Sequence sent to ${email}` : "Initialize your workspace credentials."}
+                            </Text>
+                        </View>
+
+                        {pendingVerification ? (
+                            /* --- VERIFICATION VIEW --- */
+                            <View>
+                                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">6-Digit Sequence</Text>
+                                <TextInput
+                                    value={code}
+                                    onChangeText={setCode}
+                                    placeholder="000000"
+                                    placeholderTextColor="#475569"
+                                    keyboardType="number-pad"
+                                    maxLength={6}
+                                    className="bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-5 text-white text-3xl text-center font-black tracking-[10px]"
+                                />
+                                <TouchableOpacity onPress={handleVerifyCode} className="mt-6 bg-blue-600 py-5 rounded-2xl">
+                                    <Text className="text-white text-center font-black uppercase tracking-widest">Verify Sequence</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            /* --- REGISTRATION VIEW --- */
+                            <View>
+                                <View className="flex-row gap-4 mb-4">
+                                    <View className="flex-1">
+                                        <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">First Name</Text>
+                                        <TextInput
+                                            value={firstName}
+                                            onChangeText={setFirstName}
+                                            placeholder="John"
+                                            placeholderTextColor="#475569"
+                                            className="bg-slate-800/40 border border-slate-700/50 rounded-2xl px-5 py-4 text-white font-medium"
+                                        />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Last Name</Text>
+                                        <TextInput
+                                            value={lastName}
+                                            onChangeText={setLastName}
+                                            placeholder="Doe"
+                                            placeholderTextColor="#475569"
+                                            className="bg-slate-800/40 border border-slate-700/50 rounded-2xl px-5 py-4 text-white font-medium"
+                                        />
+                                    </View>
+                                </View>
+
+                                <View className="mb-4">
+                                    <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Email Address</Text>
+                                    <TextInput
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        placeholder="operator@system.com"
+                                        placeholderTextColor="#475569"
+                                        className="bg-slate-800/40 border border-slate-700/50 rounded-2xl px-5 py-4 text-white font-medium"
+                                    />
+                                </View>
+
+                                {/* Password Field with Toggle */}
+                                <View className="mb-8">
+                                    <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2 ml-1">Access Password</Text>
+                                    <View className="relative flex-row items-center">
+                                        <TextInput
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            placeholder="Min. 8 characters"
+                                            placeholderTextColor="#475569"
+                                            secureTextEntry={!isPasswordVisible}
+                                            className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl px-5 py-4 text-white font-medium pr-14"
+                                        />
+                                        <TouchableOpacity 
+                                            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                                            className="absolute right-5"
+                                        >
+                                            <Feather 
+                                                name={isPasswordVisible ? "eye-off" : "eye"} 
+                                                size={20} 
+                                                color="#94a3b8" 
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <TouchableOpacity onPress={handleEmailSignUp} className="overflow-hidden rounded-2xl">
+                                    <LinearGradient colors={["#3b82f6", "#1d4ed8"]} className="py-5">
+                                        {loading ? <ActivityIndicator color="white" /> : <Text className="text-white text-center font-black uppercase tracking-widest">Create Identity</Text>}
+                                    </LinearGradient>
+                                </TouchableOpacity>
+
+                                <View className="flex-row justify-center mt-10 pb-10">
+                                    <Text className="text-slate-500 font-medium">Already registered?</Text>
+                                    <TouchableOpacity onPress={() => router.push("/sign-in")}>
+                                        <Text className="text-blue-400 font-black ml-2">Authorize</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </LinearGradient>
     );
 }

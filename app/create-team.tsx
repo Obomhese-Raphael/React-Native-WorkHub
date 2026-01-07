@@ -1,3 +1,4 @@
+import { useRefresh } from "@/context/RefreshContext";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -19,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateTeamScreen() {
   const { getToken } = useAuth();
+  const { triggerRefresh } = useRefresh();
   const { user } = useUser();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -58,17 +60,22 @@ export default function CreateTeamScreen() {
           createdBy: user?.id,
         }),
       });
-      console.log("Team created successfully: ", response);
 
       Alert.alert("Success", "New team initialized.", [
-        { text: "Proceed", onPress: () => router.back() },
+        {
+          text: "Proceed",
+          onPress: () => {
+            triggerRefresh(); // ← ADD THIS
+            router.back();
+          },
+        },
       ]);
     } catch (err: any) {
       Alert.alert("System Error", err.message || "Failed to create team");
     } finally {
       setLoading(false);
     }
-  };       
+  };
 
   return (
     <LinearGradient
@@ -167,17 +174,28 @@ export default function CreateTeamScreen() {
                   colors={["#4f46e5", "#3730a3"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  className="py-5 flex-row justify-center items-center"
+                  style={{
+                    paddingVertical: 20,
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
                 >
                   {loading ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <>
-                      <Text className="text-white text-center text-lg font-black uppercase tracking-widest mr-2">
-                        Initialize Team
-                      </Text>
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 18,
+                        fontWeight: "800",
+                        textTransform: "uppercase",
+                        marginRight: 8,
+                      }}
+                    >
+                      Initialize Team{" "}
                       <Feather name="zap" size={20} color="white" />
-                    </>
+                    </Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
