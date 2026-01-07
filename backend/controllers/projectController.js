@@ -75,13 +75,10 @@ export const createProject = async (req, res) => {
 };
 // Get projects by team - Done ✅
 export const getProjectsByTeam = async (req, res) => {
-  console.log("🔥 DIRECT HIT: getProjectsByTeam called – no middleware block");
-  console.log("User ID:", req.userId);
-  console.log("Team ID:", req.params.teamId);
-  try {
+  try {console.log("🔵 getProjectsByTeam - userId:", req.userId);
+    console.log("🔵 Team ID:", req.params.teamId);
     const { teamId } = req.params;
     const userId = req.userId;
-    console.log("Fetching projects for team:", teamId, "by user:", userId);
 
     // ✅ Add this at the very top
     if (!mongoose.isValidObjectId(teamId)) {
@@ -97,7 +94,7 @@ export const getProjectsByTeam = async (req, res) => {
     }
 
     // === Find team and check membership ===
-    const team = await teamModel.findById(teamId);
+    const team = await teamModel.findById(teamId).lean();
     if (!team || !team.isActive) {
       return res.status(404).json({
         success: false,
