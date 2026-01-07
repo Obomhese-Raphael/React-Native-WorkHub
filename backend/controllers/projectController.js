@@ -95,7 +95,7 @@ export const getProjectsByTeam = async (req, res) => {
     }
 
     // === Find team and check membership ===
-    const team = await teamModel.findById(teamId).lean();
+    const team = await teamModel.findById(teamId);
     if (!team || !team.isActive) {
       return res.status(404).json({
         success: false,
