@@ -1,8 +1,10 @@
 // app/(root)/(tabs)/index.tsx
 import SearchBar from "@/components/SearchBar";
 import icons from "@/constants/icons";
+import images from "@/constants/images";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@clerk/clerk-expo";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -16,6 +18,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// --- Types ---
+
 type Team = {
   _id: string;
   name: string;
@@ -27,7 +31,7 @@ type Project = {
   _id: string;
   name: string;
   teamId: string;
-  tasks: any[]; // We'll count later
+  tasks: any[];
 };
 
 type TaskSummary = {
@@ -39,9 +43,13 @@ type TaskSummary = {
   reminders: number;
 };
 
+// --- Main Component ---
+
 export default function HomeScreen() {
   const { getToken } = useAuth();
   const { user } = useUser();
+  
+  // State Management
   const [greeting, setGreeting] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -55,17 +63,7 @@ export default function HomeScreen() {
   });
   const [loading, setLoading] = useState(true);
 
-  // 1. Log Token Function (Moved here so the button can find it!)
-  const logToken = async () => {
-    try {
-      const token = await getToken();
-      console.log("Clerk Token Debug:", token);
-      Alert.alert("Token Logged", "Check your terminal/console for the JWT.");
-    } catch (err) {
-      console.error("Failed to get token:", err);
-    }
-  };
-
+  // Set greeting based on time of day
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Morning");
@@ -73,22 +71,27 @@ export default function HomeScreen() {
     else setGreeting("Evening");
   }, []);
 
+  // --- Logic: Log Token (Debug) ---
+  const logToken = async () => {
+    try {
+      const token = await getToken();
+      console.log("Clerk Token Debug:", token);
+      Alert.alert("Authentication System", "Session token logged to console.");
+    } catch (err) {
+      console.error("Failed to get token:", err);
+    }
+  };
+
+  // --- Logic: Fetch Data ---
   const fetchHomeData = async () => {
     try {
       setLoading(true);
-
-      // Safely get Clerk token inside component
       const token = await getToken();
-      console.log("Clerk Token:", token);
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
+      if (!token) throw new Error("Not authenticated");
 
       // 1. Fetch user's teams
       const teamsRes = await api("/teams", token);
-
       const userTeams: Team[] = teamsRes.data || [];
-
       setTeams(userTeams);
 
       // 2. Prepare to collect all projects and count tasks
@@ -98,67 +101,41 @@ export default function HomeScreen() {
       let totalDone = 0;
       let totalOverdue = 0;
 
-      // Loop through each team to get its projects
       for (const team of userTeams) {
         try {
           const projectsRes = await api(`/projects/team/${team._id}`, token);
-          console.log(`Projects for team ${team.name}:`, projectsRes);
           const teamProjects = projectsRes.data || [];
-
-          // Add projects to list
           allProjects.push(...teamProjects);
 
-          // Count tasks by status for summary
           teamProjects.forEach((project: any) => {
-            const activeTasks =
-              project.tasks?.filter((t: any) => t.isActive) || [];
-
+            const activeTasks = project.tasks?.filter((t: any) => t.isActive) || [];
             activeTasks.forEach((task: any) => {
-              switch (task.status) {
-                case "todo":
-                  totalTodo++;
-                  break;
-                case "in-progress":
-                  totalInProgress++;
-                  break;
-                case "done":
-                  totalDone++;
-                  break;
-              }
+              if (task.status === "todo") totalTodo++;
+              else if (task.status === "in-progress") totalInProgress++;
+              else if (task.status === "done") totalDone++;
 
-              // Overdue: due date passed and not done
-              if (
-                task.dueDate &&
-                new Date(task.dueDate) < new Date() &&
-                task.status !== "done"
-              ) {
+              if (task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "done") {
                 totalOverdue++;
               }
             });
           });
         } catch (err) {
           console.warn(`Failed to load projects for team ${team.name}`, err);
-          // Continue with other teams
         }
       }
 
-      // Update state with real data
       setProjects(allProjects);
-
-      setTaskSummary({
+      setTaskSummary((prev) => ({
+        ...prev,
         todo: totalTodo,
         inProgress: totalInProgress,
         done: totalDone,
         overdue: totalOverdue,
-        upcoming: 3, // You can enhance this later with real logic
-        reminders: 1, // Placeholder — add real reminders later
-      });
+        upcoming: 3, // Mock value
+        reminders: 1, // Mock value
+      }));
     } catch (error: any) {
-      console.error(
-        "Failed to load home data from Index.tsx:",
-        error.message || error
-      );
-      // Optional: show toast notification in the future
+      console.error("Home Data Fetch Error:", error.message || error);
     } finally {
       setLoading(false);
     }
@@ -168,145 +145,155 @@ export default function HomeScreen() {
     fetchHomeData();
   }, []);
 
+  // Helper: Get first letter of team name
+  const getInitial = (name: string) => name.charAt(0).toUpperCase();
+
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="mt-4 text-gray-600">Loading your workspace...</Text>
-      </SafeAreaView>
+      <View className="flex-1 bg-[#0f172a] items-center justify-center">
+        <ActivityIndicator size="large" color="#38bdf8" />
+        <Text className="mt-4 text-slate-400 font-medium">Syncing Environment...</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="px-4 pt-8">
-        {/* Header */}
-        <View className="flex-row justify-between items-center mb-6">
-          <Text className="text-xl font-bold">
-            Good {greeting}, {user?.firstName || "there"}!
-          </Text>
-          <TouchableOpacity onPress={() => router.push("/settings")}>
-            <Image
-              source={{ uri: user?.imageUrl || icons.person }}
-              className="w-10 h-10 rounded-full"
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <View className="w-full border-blue-800">
-          <SearchBar placeholder="Search tasks, projects..." />
-        </View>
-
-        {/* Teams */}
-        <Text className="text-lg font-semibold mt-8 mb-3">Your Teams</Text>
-        {teams.length === 0 ? (
-          <Text className="text-gray-500">No teams yet. Create one!</Text>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {teams.map((team) => (
-              <TouchableOpacity
-                key={team._id}
-                className="mr-4 w-40 bg-gray-100 rounded-2xl p-5 items-center"
-                style={{ backgroundColor: team.color + "20" }} // e.g., #FF000020
-                onPress={() => console.log("Navigate to team", team._id)}
-              >
-                <View
-                  className="w-16 h-16 rounded-full mb-3"
-                  style={{ backgroundColor: team.color }}
-                />
-                <Text className="font-bold text-lg">{team.name}</Text>
-                <Text className="text-gray-600">
-                  {team.members.length} members
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Task Summary Cards */}
-        <Text className="text-lg font-semibold mt-8 mb-3">Task Overview</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <SummaryCard
-            count={taskSummary.todo}
-            label="To Do"
-            color="bg-yellow-100"
-          />
-          <SummaryCard
-            count={taskSummary.inProgress}
-            label="In Progress"
-            color="bg-blue-100"
-          />
-          <SummaryCard
-            count={taskSummary.done}
-            label="Done"
-            color="bg-green-100"
-          />
-          <SummaryCard
-            count={taskSummary.overdue}
-            label="Overdue"
-            color="bg-red-100"
-          />
-          <SummaryCard
-            count={taskSummary.upcoming}
-            label="Upcoming"
-            color="bg-purple-100"
-          />
-        </ScrollView>
-
-        {/* Recent Projects */}
-        <Text className="text-lg font-semibold mt-8 mb-3">Recent Projects</Text>
-        {projects.length === 0 ? (
-          <Text className="text-gray-500">No projects yet</Text>
-        ) : (
-          <View>
-            {projects.slice(0, 5).map((project) => (
-              <TouchableOpacity
-                key={project._id}
-                className="bg-gray-50 rounded-2xl p-5 mb-4 border-l-4 border-blue-500"
-                onPress={() =>
-                  router.push({
-                    pathname: "/details/[projectId]",
-                    params: { projectId: project._id },
-                  })
-                }
-              >
-                <Text className="font-bold text-lg">{project.name}</Text>
-                <Text className="text-gray-600">
-                  {project.tasks?.filter((t: any) => t.isActive).length || 0}{" "}
-                  active tasks
-                </Text>
-              </TouchableOpacity>
-            ))}
+    <LinearGradient colors={["#0f172a", "#1e293b", "#0f172a"]} className="flex-1">
+      <SafeAreaView className="flex-1">
+        <ScrollView 
+          className="px-6" 
+          contentContainerStyle={{ paddingBottom: 50 }}
+          showsVerticalScrollIndicator={false}
+        >
+          
+          {/* --- Header --- */}
+          <View className="flex-row justify-between items-center mt-8 mb-8">
+            <View>
+              <Text className="text-slate-500 text-xs font-bold uppercase tracking-[3px] mb-1">
+                Good {greeting}
+              </Text>
+              <Text className="text-3xl font-black text-white">
+                {user?.firstName || "Executive"}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push("/settings")}
+              className="border-2 border-slate-700 rounded-full p-1"
+            >
+              <Image
+                source={{ uri: user?.imageUrl || icons.person }}
+                className="w-12 h-12 rounded-full"
+              />
+            </TouchableOpacity>
           </View>
-        )}
-        <View>
-          <TouchableOpacity
-            onPress={logToken}
-            className="bg-indigo-600 px-6 py-3 rounded-xl active:bg-indigo-700"
-          >
-            <Text className="text-white font-bold text-base">
-              Log Clerk Token
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+
+          {/* --- Search Bar & Logo Row --- */}
+          <View className="flex-row items-center mb-10">
+            <View className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden">
+              <SearchBar placeholder="Search Ecosystem..." />
+            </View>
+            <View className="ml-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-2 items-center justify-center w-14 h-14">
+              <Image source={images.expo_icon} className="w-8 h-8" resizeMode="contain" />
+            </View>
+          </View>
+
+          {/* --- Teams Section --- */}
+          <View className="flex-row justify-between items-center mb-5">
+            <Text className="text-lg font-bold text-white tracking-tight">Active Teams</Text>
+            <TouchableOpacity><Text className="text-sky-400 font-bold text-[10px] uppercase">Browse All</Text></TouchableOpacity>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-10">
+            {teams.length === 0 ? (
+              <Text className="text-slate-500 italic">No active teams assigned.</Text>
+            ) : (
+              teams.map((team) => (
+                <TouchableOpacity
+                  key={team._id}
+                  className="mr-5 w-32 bg-slate-800/30 border border-slate-700/50 rounded-[30px] p-5 items-center"
+                >
+                  <View 
+                    className="w-14 h-14 rounded-2xl mb-3 items-center justify-center shadow-lg"
+                    style={{ backgroundColor: team.color || '#3b82f6' }}
+                  >
+                    <Text className="text-white text-xl font-black">{getInitial(team.name)}</Text>
+                  </View>
+                  <Text className="text-white font-bold text-sm text-center" numberOfLines={1}>
+                    {team.name}
+                  </Text>
+                  <Text className="text-slate-500 text-[10px] mt-1 font-bold">
+                    {team.members.length} MEMBERS
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+
+          {/* --- Performance Overview Grid --- */}
+          <Text className="text-lg font-bold text-white tracking-tight mb-5">Performance Metrics</Text>
+          <View className="flex-row flex-wrap justify-between">
+            <SummaryCard count={taskSummary.todo} label="Pending" accent="#f59e0b" />
+            <SummaryCard count={taskSummary.inProgress} label="In Work" accent="#3b82f6" />
+            <SummaryCard count={taskSummary.done} label="Completed" accent="#10b981" />
+            <SummaryCard count={taskSummary.overdue} label="Critical" accent="#ef4444" />
+          </View>
+
+          {/* --- Recent Projects --- */}
+          <Text className="text-lg font-bold text-white tracking-tight mt-10 mb-5">Current Operations</Text>
+          {projects.length === 0 ? (
+            <View className="bg-slate-800/20 border border-dashed border-slate-700 p-8 rounded-3xl items-center">
+              <Text className="text-slate-500">Zero active projects detected.</Text>
+            </View>
+          ) : (
+            <View>
+              {projects.slice(0, 4).map((project) => (
+                <TouchableOpacity
+                  key={project._id}
+                  className="bg-slate-800/20 border border-slate-700/40 rounded-3xl p-5 mb-4 flex-row items-center justify-between"
+                  onPress={() => router.push({ pathname: "/details/[projectId]", params: { projectId: project._id } })}
+                >
+                  <View className="flex-row items-center flex-1">
+                    <View className="w-1 h-10 bg-indigo-500 rounded-full mr-4" />
+                    <View>
+                      <Text className="text-white font-extrabold text-base">{project.name}</Text>
+                      <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-tighter">
+                        Code: {project._id.slice(-6)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+                    <Text className="text-sky-400 text-[10px] font-black">
+                      {project.tasks?.length || 0} ACTIVE
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* --- Debug Footer --- */}
+          <View className="mt-12 items-center opacity-40">
+            <TouchableOpacity onPress={logToken}>
+              <Text className="text-slate-500 text-[10px] font-bold tracking-[2px]">
+                ENCRYPTED SESSION LOGS
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
-// Reusable summary card component
-const SummaryCard = ({
-  count,
-  label,
-  color,
-}: {
-  count: number;
-  label: string;
-  color: string;
-}) => (
-  <View className={`${color} rounded-2xl p-5 w-32 items-center mr-4`}>
-    <Text className="text-3xl font-bold">{count}</Text>
-    <Text className="text-gray-700 font-medium">{label}</Text>
+// --- Internal Sub-Components ---
+
+const SummaryCard = ({ count, label, accent }: { count: number; label: string; accent: string }) => (
+  <View className="bg-slate-800/30 border border-slate-700/40 w-[48%] rounded-[24px] p-5 mb-4">
+    <View className="flex-row justify-between items-start mb-2">
+      <Text className="text-3xl font-black text-white">{count}</Text>
+      <View style={{ backgroundColor: accent }} className="w-2 h-2 rounded-full mt-2 shadow-sm shadow-white" />
+    </View>
+    <Text className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">{label}</Text>
   </View>
 );

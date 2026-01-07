@@ -6,6 +6,7 @@ const createTeam = async (req, res) => {
   try {
     const { name, description, color } = req.body;
     const userId = req.userId;
+    const createdBy = req.userId;
     // Fallbacks if Clerk doesn't provide name/email
     const userName = req.userName || "Unknown User";
     const userEmail = req.userEmail || "no-email@workhub.app";
@@ -14,10 +15,10 @@ const createTeam = async (req, res) => {
       name,
       description,
       createdBy: userId,
-      color,
+      color: color || "#3498db", // Default color if none provided
       members: [
         {
-          userId,
+          userId: createdBy,
           name: userName,
           email: userEmail,
           role: "admin",
