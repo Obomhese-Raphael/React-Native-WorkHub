@@ -31,7 +31,7 @@ app.use(
 app.use(express.json());
 app.use(clerkMiddleware());
 
-// === Global MongoDB Connection with Reuse (CRITICAL for Vercel) ===
+// === Global MongoDB Connection with Reuse (Vercel-safe) ===
 let cachedConnection = null;
 
 async function connectDB() {
@@ -45,18 +45,23 @@ async function connectDB() {
   }
 
   console.log("🟡 Connecting to MongoDB...");
-  cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 20000, // Increase timeout
-    socketTimeoutMS: 45000,
-    bufferMaxEntries: 0, // Disable mongoose buffering (helps with serverless)
-    bufferTimeoutMS: 15000, // Increase buffer timeout
-  });
 
-  console.log("🟢 Connected to MongoDB");
-  return cachedConnection;
+  try {
+    cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000, // Longer wait for cold starts
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,                 // Good for serverless
+    });
+
+    console.log("🟢 Connected to MongoDB successfully");
+    return cachedConnection;
+  } catch (err) {
+    console.error("🔴 MongoDB connection failed:", err.message);
+    throw err;
+  }
 }
 
-// Call it once at startup (but it will reuse on warm invokes)
+// Start connection early so it's ready for requests
 connectDB().catch(err => console.error("Initial DB connect failed:", err));
 
 // Routes (must come after middleware)
