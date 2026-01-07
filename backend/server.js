@@ -1,6 +1,6 @@
 // backend/server.js
 import dotenv from "dotenv";
-dotenv.config(); // ← Move this RIGHT AFTER the dotenv import
+dotenv.config();
 
 import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
@@ -13,7 +13,14 @@ import taskRouter from "./routes/task.js";
 import teamsRouter from "./routes/team.js";
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
+
+// === Prevent compression issues (helps with Clerk token parsing) ===
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  res.set("Content-Encoding", "identity");
+  next();
+});
 
 app.use(
   cors({
@@ -24,46 +31,51 @@ app.use(
 app.use(express.json());
 app.use(clerkMiddleware());
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("❌ MONGODB_URI is missing. Check your .env file.");
+// === Global MongoDB Connection with Reuse (CRITICAL for Vercel) ===
+let cachedConnection = null;
+
+async function connectDB() {
+  if (cachedConnection && cachedConnection.readyState === 1) {
+    console.log("🔵 Reusing existing MongoDB connection");
+    return cachedConnection;
+  }
+
+  if (!process.env.MONGODB_URI) {
+    throw new Error("❌ MONGODB_URI is missing in env");
+  }
+
+  console.log("🟡 Connecting to MongoDB...");
+  cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 20000, // Increase timeout
+    socketTimeoutMS: 45000,
+    bufferMaxEntries: 0, // Disable mongoose buffering (helps with serverless)
+    bufferTimeoutMS: 15000, // Increase buffer timeout
+  });
+
+  console.log("🟢 Connected to MongoDB");
+  return cachedConnection;
 }
 
+// Call it once at startup (but it will reuse on warm invokes)
+connectDB().catch(err => console.error("Initial DB connect failed:", err));
 
-// Routes
+// Routes (must come after middleware)
 app.use("/api/projects", projectRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/teams", teamsRouter);
 app.get("/api/tasks/search", requireAuth, getUserInfo, searchTasks);
 
+app.get("/api/debug-auth", (req, res) => {
+  res.json({
+    message: "Auth debug",
+    userId: req.auth?.userId || null,
+    auth: req.auth || null,
+  });
+});
+
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
 
-// Debug route to check if Clerk auth is working
-app.get("/api/debug-auth", (req, res) => {
-  res.json({
-    message: "Auth debug endpoint",
-    auth: req.auth || null,
-    userId: req.auth?.userId || null,
-    sessionClaims: req.auth?.sessionClaims || null,
-    headersReceived: {
-      authorization: req.headers.authorization ? "Present (Bearer token sent)" : "Missing",
-    },
-    rawHeaders: req.headers.authorization,
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((err) => console.error(err));
-
-// ✅ Export for Vercel
+// Export for Vercel
 export default app;
