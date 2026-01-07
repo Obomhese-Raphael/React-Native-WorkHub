@@ -68,7 +68,7 @@ export default function CreateTeamScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  };       
 
   return (
     <LinearGradient
