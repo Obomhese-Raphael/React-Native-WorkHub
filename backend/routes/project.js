@@ -15,6 +15,7 @@ import {
 
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
 import projectModel from "../models/Project.js";
+import teamModel from "../models/Team.js";
 
 const projectRouter = express.Router();
 
@@ -45,26 +46,34 @@ projectRouter.get("/", requireAuth, getUserInfo, async (req, res) => {
     const userId = req.userId;
 
     // Step 1: Find all teams the user has access to
-    const userTeams = await teamModel.find({
-      $or: [
-        { createdBy: userId },                    // User is owner
-        { "members.userId": userId },             // User is a member
-      ],
-      isActive: true,
-    }).select("_id");
+    const userTeams = await teamModel
+      .find({
+        $or: [
+          { createdBy: userId }, // User is owner
+          { "members.userId": userId }, // User is a member
+        ],
+        isActive: true,
+      })
+      .select("_id");
+    console.log("User Teams:", userTeams);
 
     if (userTeams.length === 0) {
       return res.json({ success: true, data: [] });
     }
 
-    const teamIds = userTeams.map(t => t._id);
+    const teamIds = userTeams.map((t) => t._id);
 
     // Step 2: Find all active projects in those teams
-    const projects = await projectModel.find({
-      teamId: { $in: teamIds },
-      isActive: true,
-    }).select("_id name").sort({ createdAt: -1 }); // Optional: newest first
+    const projects = await projectModel
+      .find({
+        teamId: { $in: teamIds },
+        isActive: true,
+      })
+      .select("_id name")
+      .sort({ createdAt: -1 }); // Optional: newest first
 
+    console.log(`Found ${projects.length} projects for user ${userId}`);
+    console.log("Projects:", projects);
     res.json({ success: true, data: projects });
   } catch (err) {
     console.error("Error fetching user projects:", err);
@@ -205,6 +214,5 @@ projectRouter.get(
   },
   listProjectMembers
 );
-
 
 export default projectRouter;

@@ -61,6 +61,8 @@ export default function CreateTeamScreen() {
         }),
       });
 
+      console.log("Team Creation Response:", response);
+
       Alert.alert("Success", "New team initialized.", [
         {
           text: "Proceed",

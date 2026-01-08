@@ -28,17 +28,29 @@ export default function CreateTaskScreen() {
     const fetchProjects = async () => {
       try {
         const token = await getToken();
-        // Updated to use your consistent API helper
-        const res = await api("/projects", token);   
-        const projectData = res.data || [];
+        const res = await api("/api/projects", token); // ← ADD /api HERE
+
+        console.log("Fetched projects response:", res);
+
+        // Backend returns { success: true, data: [...] }
+        const projectData = res.data?.data || res.data || [];
+
         setProjects(projectData);
-        if (projectData.length > 0) setSelectedProjectId(projectData[0]._id);
-      } catch (err) {
+
+        if (projectData.length > 0) {
+          setSelectedProjectId(projectData[0]._id);
+        }
+      } catch (err: any) {
         console.error("Task Module: Failed to sync parent projects", err);
+        Alert.alert(
+          "Sync Failed",
+          "Unable to load projects. Check your connection and try again."
+        );
       }
     };
+
     fetchProjects();
-  }, []);
+  }, [getToken]);
 
   const handleCreate = async () => {
     if (!title.trim())
