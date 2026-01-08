@@ -28,10 +28,7 @@ export default function CreateTaskScreen() {
     const fetchProjects = async () => {
       try {
         const token = await getToken();
-        const res = await api("/api/projects", token); // ← ADD /api HERE
-
-        console.log("Fetched projects response:", res);
-
+        const res = await api("/projects", token); // ← ADD /api HERE
         // Backend returns { success: true, data: [...] }
         const projectData = res.data?.data || res.data || [];
 
@@ -61,7 +58,7 @@ export default function CreateTaskScreen() {
     setLoading(true);
     try {
       const token = await getToken();
-      await api(`/api/tasks/${selectedProjectId}/tasks`, token, {
+      await api(`/tasks/${selectedProjectId}/tasks`, token, {
         method: "POST",
         body: JSON.stringify({ title: title.trim() }),
       });

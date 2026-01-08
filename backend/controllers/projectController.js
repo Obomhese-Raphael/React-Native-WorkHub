@@ -76,8 +76,7 @@ export const createProject = async (req, res) => {
 };
 // Get projects by team - Done ✅
 export const getProjectsByTeam = async (req, res) => {
-  try {console.log("🔵 getProjectsByTeam - userId:", req.userId);
-    console.log("🔵 Team ID:", req.params.teamId);
+  try {
     const { teamId } = req.params;
     const userId = req.userId;
 
