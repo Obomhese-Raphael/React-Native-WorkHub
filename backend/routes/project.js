@@ -41,13 +41,35 @@ projectRouter.post(
 projectRouter.get("/search", requireAuth, getUserInfo, searchProjects);
 
 projectRouter.get("/", requireAuth, getUserInfo, async (req, res) => {
-  // Example: fetch all projects user has access to
-  const projects = await projectModel.find({
-    members: { $elemMatch: { userId: req.userId } },
-    isActive: true,
-  }).select("_id name");
+  try {
+    const userId = req.userId;
 
-  res.json({ success: true, data: projects });
+    // Step 1: Find all teams the user has access to
+    const userTeams = await teamModel.find({
+      $or: [
+        { createdBy: userId },                    // User is owner
+        { "members.userId": userId },             // User is a member
+      ],
+      isActive: true,
+    }).select("_id");
+
+    if (userTeams.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const teamIds = userTeams.map(t => t._id);
+
+    // Step 2: Find all active projects in those teams
+    const projects = await projectModel.find({
+      teamId: { $in: teamIds },
+      isActive: true,
+    }).select("_id name").sort({ createdAt: -1 }); // Optional: newest first
+
+    res.json({ success: true, data: projects });
+  } catch (err) {
+    console.error("Error fetching user projects:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch projects" });
+  }
 });
 
 // Get all projects by team

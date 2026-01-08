@@ -29,7 +29,7 @@ export default function CreateTaskScreen() {
       try {
         const token = await getToken();
         // Updated to use your consistent API helper
-        const res = await api("/api/projects", token);
+        const res = await api("/projects", token);   
         const projectData = res.data || [];
         setProjects(projectData);
         if (projectData.length > 0) setSelectedProjectId(projectData[0]._id);

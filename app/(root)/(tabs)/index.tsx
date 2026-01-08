@@ -228,7 +228,7 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             className="mb-10"
-          >
+          >    
             {teams.length === 0 ? (
               <Text className="text-slate-500 italic">
                 No active teams assigned.

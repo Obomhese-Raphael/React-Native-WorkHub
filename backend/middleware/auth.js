@@ -18,35 +18,13 @@ export const requireAuth = (req, res, next) => {
   next();
 };
 
-// Optional: Middleware to fetch extra user info (if you need name/email/image beyond req.auth)
-// export const getUserInfo = async (req, res, next) => {
-//   const { userId } = getAuth(req); // or req.auth.userId
-//   if (!userId) return next(); // should not reach here if requireAuth is before
-
-//   try {
-//     const clerkUser = await clerkClient.users.getUser(userId);
-//     req.userName =
-//       `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
-//       clerkUser.username ||
-//       "User";
-//     req.userEmail = clerkUser.primaryEmailAddress?.emailAddress || "<no-email>";
-//     req.userImage = clerkUser.imageUrl;
-//     next();
-//   } catch (error) {
-//     console.error("Failed to fetch Clerk user:", error);
-//     next();
-//   }
-// };
-
 export const getUserInfo = async (req, res, next) => {
-  console.log("🔵 getUserInfo triggered for userId:", req.auth?.userId);
 
   try { 
     if (req.auth && req.auth.userId) {
       req.userId = req.auth.userId;
 
       const clerkUser = await clerkClient.users.getUser(req.auth.userId);
-      console.log("Clerk user fetched:", clerkUser);
 
       // Properly extract name
       req.userName = 
