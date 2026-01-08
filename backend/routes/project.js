@@ -14,6 +14,7 @@ import {
 } from "../controllers/projectController.js";
 
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
+import projectModel from "../models/Project.js";
 
 const projectRouter = express.Router();
 
@@ -35,6 +36,19 @@ projectRouter.post(
   },
   createProject
 );
+
+// Search projects
+projectRouter.get("/search", requireAuth, getUserInfo, searchProjects);
+
+projectRouter.get("/", requireAuth, getUserInfo, async (req, res) => {
+  // Example: fetch all projects user has access to
+  const projects = await projectModel.find({
+    members: { $elemMatch: { userId: req.userId } },
+    isActive: true,
+  }).select("_id name");
+
+  res.json({ success: true, data: projects });
+});
 
 // Get all projects by team
 projectRouter.get(
@@ -170,7 +184,5 @@ projectRouter.get(
   listProjectMembers
 );
 
-// Search projects
-projectRouter.get("/search", requireAuth, getUserInfo, searchProjects);
 
 export default projectRouter;

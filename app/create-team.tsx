@@ -6,15 +6,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -184,18 +184,22 @@ export default function CreateTeamScreen() {
                   {loading ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 18,
-                        fontWeight: "800",
-                        textTransform: "uppercase",
-                        marginRight: 8,
-                      }}
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
                     >
-                      Initialize Team{" "}
+                      <Text
+                        style={{
+                          color: "white",
+                          fontSize: 18,
+                          fontWeight: "800",
+                          textTransform: "uppercase",
+                          marginRight: 8,
+                        }}
+                      >
+                        Initialize Team
+                      </Text>
                       <Feather name="zap" size={20} color="white" />
-                    </Text>
+                    </View>
                   )}
                 </LinearGradient>
               </TouchableOpacity>

@@ -5,15 +5,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -29,7 +29,7 @@ export default function CreateTaskScreen() {
       try {
         const token = await getToken();
         // Updated to use your consistent API helper
-        const res = await api("/projects", token); 
+        const res = await api("/api/projects", token);
         const projectData = res.data || [];
         setProjects(projectData);
         if (projectData.length > 0) setSelectedProjectId(projectData[0]._id);
@@ -41,13 +41,15 @@ export default function CreateTaskScreen() {
   }, []);
 
   const handleCreate = async () => {
-    if (!title.trim()) return Alert.alert("Required", "Task description cannot be empty.");
-    if (!selectedProjectId) return Alert.alert("Missing Node", "Please select a parent project.");
+    if (!title.trim())
+      return Alert.alert("Required", "Task description cannot be empty.");
+    if (!selectedProjectId)
+      return Alert.alert("Missing Node", "Please select a parent project.");
 
     setLoading(true);
     try {
       const token = await getToken();
-      await api(`/tasks/project/${selectedProjectId}`, token, {
+      await api(`/api/tasks/${selectedProjectId}/tasks`, token, {
         method: "POST",
         body: JSON.stringify({ title: title.trim() }),
       });
@@ -62,17 +64,22 @@ export default function CreateTaskScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0f172a", "#1e293b", "#0f172a"]} className="flex-1">
+    <LinearGradient
+      colors={["#0f172a", "#1e293b", "#0f172a"]}
+      className="flex-1"
+    >
       <SafeAreaView className="flex-1">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <ScrollView className="flex-1 px-8 pt-6" showsVerticalScrollIndicator={false}>
-            
+          <ScrollView
+            className="flex-1 px-8 pt-6"
+            showsVerticalScrollIndicator={false}
+          >
             {/* Header */}
             <View className="flex-row items-center justify-between mb-10">
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => router.back()}
                 className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700"
               >
@@ -85,8 +92,12 @@ export default function CreateTaskScreen() {
             </View>
 
             <View className="mb-10">
-              <Text className="text-4xl font-black text-white tracking-tight">New Task</Text>
-              <Text className="text-slate-400 mt-2 font-medium">Create a tactical action item.</Text>
+              <Text className="text-4xl font-black text-white tracking-tight">
+                New Task
+              </Text>
+              <Text className="text-slate-400 mt-2 font-medium">
+                Create a tactical action item.
+              </Text>
             </View>
 
             <View className="space-y-8 pb-10">
@@ -98,7 +109,9 @@ export default function CreateTaskScreen() {
                 <View className="flex-row flex-wrap">
                   {projects.length === 0 ? (
                     <View className="bg-slate-800/20 border border-dashed border-slate-700 p-4 rounded-2xl w-full">
-                      <Text className="text-slate-500 text-xs italic">No projects detected in ecosystem.</Text>
+                      <Text className="text-slate-500 text-xs italic">
+                        No projects detected in ecosystem.
+                      </Text>
                     </View>
                   ) : (
                     projects.map((proj) => (
@@ -106,14 +119,18 @@ export default function CreateTaskScreen() {
                         key={proj._id}
                         onPress={() => setSelectedProjectId(proj._id)}
                         className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
-                          selectedProjectId === proj._id 
-                            ? "border-blue-500 bg-blue-500/10" 
+                          selectedProjectId === proj._id
+                            ? "border-blue-500 bg-blue-500/10"
                             : "border-slate-700 bg-slate-800/40"
                         }`}
                       >
-                        <Text className={`font-bold text-sm ${
-                          selectedProjectId === proj._id ? "text-blue-400" : "text-slate-400"
-                        }`}>
+                        <Text
+                          className={`font-bold text-sm ${
+                            selectedProjectId === proj._id
+                              ? "text-blue-400"
+                              : "text-slate-400"
+                          }`}
+                        >
                           {proj.name}
                         </Text>
                       </TouchableOpacity>
