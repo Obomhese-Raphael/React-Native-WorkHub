@@ -5,26 +5,19 @@ import teamModel from "../models/Team.js";
 const createTeam = async (req, res) => {
   try {
     const { name, description, color } = req.body;
+
+    // 1. Validation: Ensure name exists before trimming
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ success: false, error: "Team name is required" });
+    }
+
+    console.log("Checking req body in createTeam:", req.body);
     const userId = req.userId;
     const createdBy = req.userId;
     // Fallbacks if Clerk doesn't provide name/email
-    const userName = req.userName || "Unknown User";
+    const userName = req.userName || "Team Creator";
     const userEmail = req.userEmail || "no-email@workhub.app";
     const creatorEmail = req.userEmail || null;
-    // const newTeam = new teamModel({
-    //   name,
-    //   description,
-    //   createdBy: userId,
-    //   color: color || "#3498db", // Default color if none provided
-    //   members: [
-    //     {
-    //       userId: createdBy,
-    //       name: userName,
-    //       email: userEmail,
-    //       role: "admin",
-    //     },
-    //   ],
-    // });
 
     const newTeam = new teamModel({
       name: req.body.name.trim(),
