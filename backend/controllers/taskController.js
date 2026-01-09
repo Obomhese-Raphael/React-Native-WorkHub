@@ -17,7 +17,6 @@ export const createTask = async (req, res) => {
     const userId = req.userId;
     const project = req.project; // Enriched with projectMembers from middleware
 
-
     // --- ADD THIS LOGIC ---
     // If no assignees are provided, default to assigning the creator
     if (assignees.length === 0) {
@@ -25,7 +24,6 @@ export const createTask = async (req, res) => {
     }
     // ----------------------
 
-    
     if (!title || title.trim() === "") {
       return res
         .status(400)
@@ -140,21 +138,20 @@ export const createTask = async (req, res) => {
 };
 
 // Get all tasks
-// backend/controllers/taskController.js
 export const getMyTasks = async (req, res) => {
+  console.log("Getting all tasks...");
   try {
     const userId = req.userId;
 
     const tasks = await taskModel
       .find({
         isActive: true,
-        $or: [
-          { "assignees.userId": userId },
-          { createdBy: userId },
-        ],
+        $or: [{ "assignees.userId": userId }, { createdBy: userId }],
       })
       .populate("projectId", "name")
       .sort({ createdAt: -1 });
+
+    console.log("All Tasks: ", tasks);
 
     res.status(200).json({
       success: true,
@@ -165,7 +162,6 @@ export const getMyTasks = async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to fetch tasks" });
   }
 };
-
 
 // Get tasks for a project - Done ✅
 export const getTasksByProject = async (req, res) => {
@@ -548,36 +544,60 @@ export const reorderTasks = async (req, res) => {
 };
 
 // Archive a task - Done ✅
+// export const archiveTask = async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
+//     const archivedBy = req.userId;
+
+//     const task = await taskModel.findOne({
+//       _id: taskId,
+//       projectId: req.project._id,
+//       isActive: true,
+//     });
+
+//     if (!task) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Task not found or already archived",
+//       });
+//     }
+
+//     // Soft archive
+//     task.isActive = false;
+//     task.archivedAt = new Date();
+//     task.archivedBy = archivedBy; // Optional: track who archived it
+
+//     await task.save();
+
+//     res.json({
+//       success: true,
+//       message: "Task archived successfully",
+//       data: { taskId: task._id },
+//     });
+//   } catch (error) {
+//     console.error("Error archiving task:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to archive task",
+//     });
+//   }
+// };
+
+// Archive a task
 export const archiveTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const archivedBy = req.userId;
+    const task = await taskModel.findById(taskId);
 
-    const task = await taskModel.findOne({
-      _id: taskId,
-      projectId: req.project._id,
-      isActive: true,
-    });
+    if (!task)
+      return res.status(404).json({ success: false, error: "Task not found" });
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: "Task not found or already archived",
-      });
-    }
-
-    // Soft archive
-    task.isActive = false;
+    task.isArchived = true; // Use a specific flag
+    task.isActive = false; // Remove from main view
     task.archivedAt = new Date();
-    task.archivedBy = archivedBy; // Optional: track who archived it
 
     await task.save();
-
-    res.json({
-      success: true,
-      message: "Task archived successfully",
-      data: { taskId: task._id },
-    });
+    res.json({ success: true, message: "Task archived" });
   } catch (error) {
     console.error("Error archiving task:", error);
     res.status(500).json({

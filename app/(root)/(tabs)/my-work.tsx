@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -19,7 +20,7 @@ type Task = {
   title: string;
   status: "todo" | "in-progress" | "done"; // Match backend enum
   priority: "low" | "medium" | "high" | "urgent";
-  projectId?: { 
+  projectId?: {
     _id: string;
     name: string;
   };
@@ -30,12 +31,49 @@ export default function MyWorkScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const confirmDelete = (taskId: string) => {
+    Alert.alert("Delete Task", "Move this task to trash?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => performAction(taskId, "delete"),
+      },
+    ]);
+  };
+
+  const performAction = async (taskId: string, type: "delete" | "archive") => {
+    try {
+      const token = await getToken();
+      const endpoint =
+        type === "delete"
+          ? `/tasks/${taskId}/delete`
+          : `/tasks/${taskId}/archive`;
+      await api(endpoint, token, { method: "PATCH" }); // Usually PATCH for soft updates
+
+      // Remove from local state immediately
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+    } catch (err) {
+      Alert.alert("Error", `Failed to ${type} task`);
+    }
+  };
+
+  const handleArchive = (taskId: string) => {
+    Alert.alert("Archive Task", "Move this task to your archives?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Archive",
+        onPress: () => performAction(taskId, "archive"),
+      },
+    ]);
+  };
+
   useEffect(() => {
     const fetchMyTasks = async () => {
       try {
         const token = await getToken();
         const res = await api("/tasks/my-tasks", token);
-        setTasks(res.data?.data || []);
+        setTasks(res.data || []); // Fixed: Access the tasks array directly
       } catch (err) {
         console.error("Failed to load my work", err);
       } finally {
@@ -73,31 +111,59 @@ export default function MyWorkScreen() {
               </Text>
             </View>
           ) : (
-            <View className="space-y-4">
+            <View className="space-y-4 mb-10">
               {tasks.map((task) => (
-                <TouchableOpacity
+                <View
                   key={task._id}
-                  className="bg-slate-800/50 border border-slate-700 rounded-2xl p-5"
+                  className="bg-slate-800/50 border mb-5 border-slate-700 rounded-2xl p-5"
                 >
-                  <Text className="text-white font-bold text-lg">
-                    {task.title}
-                  </Text>
+                  {/* Top Row: Title & Icons */}
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 mr-4">
+                      <Text className="text-white font-bold text-lg leading-6">
+                        {task.title}
+                      </Text>
+                      {task.projectId && (
+                        <Text className="text-slate-400 text-xs mt-1">
+                          {task.projectId.name}
+                        </Text>
+                      )}
+                    </View>
 
-                  {task.projectId && (
-                    <Text className="text-slate-400 text-xs mt-1">
-                      {task.projectId.name}
-                    </Text>
-                  )}
-
-                  <View className="flex-row justify-between mt-4">
-                    <Text className="text-xs uppercase tracking-widest text-slate-500">
-                      {task.status}
-                    </Text>
-                    <Text className="text-xs font-bold text-blue-400">
-                      {task.priority}
-                    </Text>
+                    {/* Action Buttons Grouped Top-Right */}
+                    <View className="flex-row gap-5 items-center space-x-3 bg-slate-900/50 p-2 rounded-lg">
+                      <TouchableOpacity
+                        onPress={() => handleArchive(task._id)}
+                        hitSlop={10}
+                      >
+                        <Feather name="archive" size={18} color="#94a3b8" />
+                      </TouchableOpacity>
+                      <View className="w-[1px] h-4 bg-slate-700" />{" "}
+                      {/* Tiny separator */}
+                      <TouchableOpacity
+                        onPress={() => confirmDelete(task._id)}
+                        hitSlop={10}
+                      >
+                        <Feather name="trash-2" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </TouchableOpacity>
+
+                  {/* Bottom Row: Status & Priority */}
+                  <View className="flex-row justify-between mt-6 pt-4 border-t border-slate-700/50">
+                    <View className="flex-row items-center">
+                      <View className="w-2 h-2 rounded-full bg-emerald-500 mr-2" />
+                      <Text className="text-xs uppercase tracking-widest text-slate-400 font-semibold">
+                        {task.status}
+                      </Text>
+                    </View>
+                    <View className="bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                      <Text className="text-[10px] font-bold text-blue-400 uppercase">
+                        {task.priority}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               ))}
             </View>
           )}

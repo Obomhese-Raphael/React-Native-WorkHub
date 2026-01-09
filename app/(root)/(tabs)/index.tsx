@@ -324,7 +324,7 @@ export default function HomeScreen() {
                   </View>
                   <View className="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
                     <Text className="text-sky-400 text-[10px] font-black">
-                      {project.tasks?.length || 0} ACTIVEd
+                      {project.tasks?.length || 0} ACTIVE
                     </Text>
                   </View>
                 </TouchableOpacity>

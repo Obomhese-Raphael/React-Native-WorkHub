@@ -71,6 +71,10 @@ const taskSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isActive: { type: Boolean, default: true }, // false = Deleted/In Trash
+  isArchived: { type: Boolean, default: false }, // true = Archived
+  archivedAt: Date,
+  deletedAt: Date,
   createdAt: {
     type: Date,
     default: Date.now,
