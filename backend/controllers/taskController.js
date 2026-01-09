@@ -135,7 +135,7 @@ export const getMyTasks = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const tasks = await Task.find({
+    const tasks = await taskModel.find({
       assignedTo: userId,
     })
       .populate("projectId", "name")

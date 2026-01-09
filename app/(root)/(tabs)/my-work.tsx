@@ -29,7 +29,7 @@ export default function MyWorkScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useEffect(() => {  
     const fetchMyTasks = async () => {
       try {
         const token = await getToken();
