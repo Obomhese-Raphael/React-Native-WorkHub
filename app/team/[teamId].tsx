@@ -48,8 +48,8 @@ export default function TeamDetailsScreen() {
     });
   };
 
-  const activeTaskCount = (project: Project) => 
-    project.tasks?.filter(t => t.isActive).length || 0;
+  const activeTaskCount = (project: Project) =>
+    project.tasks?.filter((t) => t.isActive).length || 0;
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -93,7 +93,10 @@ export default function TeamDetailsScreen() {
   }
 
   return (
-    <LinearGradient colors={["#0f172a", "#1e293b", "#0f172a"]} className="flex-1">
+    <LinearGradient
+      colors={["#0f172a", "#1e293b", "#0f172a"]}
+      className="flex-1"
+    >
       <SafeAreaView className="flex-1">
         <ScrollView className="flex-1 px-8 pt-6">
           {/* Header */}
@@ -146,7 +149,8 @@ export default function TeamDetailsScreen() {
                 Workforce
               </Text>
               <Text className="text-white text-xl font-bold">
-                {team.members.length} {team.members.length === 1 ? "Member" : "Members"}
+                {team.members.length}{" "}
+                {team.members.length === 1 ? "Member" : "Members"}
               </Text>
             </View>
 
@@ -162,16 +166,16 @@ export default function TeamDetailsScreen() {
           </View>
 
           {/* Members List */}
-          <Text className="text-white text-xl font-bold mb-4">Team Members</Text>
+          <Text className="text-white text-xl font-bold mb-4">
+            Team Members
+          </Text>
           <View className="space-y-4 mb-10">
             {team.members.map((member, index) => (
               <View
                 key={index}
                 className="bg-slate-800/40 rounded-2xl p-5 flex-row items-center border border-slate-700/50"
               >
-                <View
-                  className="w-12 h-12 rounded-xl bg-indigo-600 items-center justify-center mr-4"
-                >
+                <View className="w-12 h-12 rounded-xl bg-indigo-600 items-center justify-center mr-4">
                   <Text className="text-white text-xl font-bold">
                     {getInitial(member.name || "U")}
                   </Text>
@@ -184,9 +188,13 @@ export default function TeamDetailsScreen() {
                     {member.email || "No email"}
                   </Text>
                 </View>
-                <View className={`px-3 py-1 rounded-full ${
-                  member.role === "admin" ? "bg-purple-600/30" : "bg-slate-600/30"
-                }`}>
+                <View
+                  className={`px-3 py-1 rounded-full ${
+                    member.role === "admin"
+                      ? "bg-purple-600/30"
+                      : "bg-slate-600/30"
+                  }`}
+                >
                   <Text className="text-xs font-bold text-purple-300 uppercase">
                     {member.role}
                   </Text>
@@ -195,11 +203,8 @@ export default function TeamDetailsScreen() {
             ))}
           </View>
 
-
           {/* Projects List — Added Underneath */}
-          <Text className="text-white text-2xl font-bold mb-6">
-            Projects
-          </Text>
+          <Text className="text-white text-2xl font-bold mb-6">Projects</Text>
           {team.projects && team.projects.length > 0 ? (
             <View className="space-y-5 pb-10">
               {team.projects.map((project) => (
@@ -217,7 +222,8 @@ export default function TeamDetailsScreen() {
                       {project.name}
                     </Text>
                     <Text className="text-slate-400 mt-1">
-                      {activeTaskCount(project)} active tasks
+                      {project.activeTaskCount} active task
+                      {project.activeTaskCount !== 1 ? "s" : ""}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={24} color="#94a3b8" />

@@ -75,72 +75,143 @@ export const createProject = async (req, res) => {
   }
 };
 // Get projects by team - Done ✅
+// export const getProjectsByTeam = async (req, res) => {
+//   console.log("Getting Projects By Team");
+//   try {
+//     const { teamId } = req.params;
+//     const userId = req.userId;
+
+//     // ✅ Add this at the very top
+//     if (!mongoose.isValidObjectId(teamId)) {
+//       return res.status(400).json({ success: false, error: "Invalid team ID" });
+//     }
+
+//     // === Auth Check ===
+//     if (!userId) {
+//       return res.status(401).json({
+//         success: false,
+//         error: "Unauthorized: Missing authentication",
+//       });
+//     }
+
+//     // === Find team and check membership ===
+//     const team = await teamModel.findById(teamId);
+//     if (!team || !team.isActive) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Team not found or inactive",
+//       });
+//     }
+
+//     if (!team.isUserMember(userId)) {
+//       return res.status(403).json({
+//         success: false,
+//         error: "Access denied: You are not a member of this team",
+//       });
+//     }
+//     // === Fetch active projects for the team ===
+//     const projects = await projectModel
+//       .find({ teamId: team._id, isActive: true })
+//       .populate({
+//         path: "tasks",
+//         match: { isActive: true },
+//         select: "status dueDate isActive",
+//       })
+//       .sort({ createdAt: -1 }) // Newest first
+//       .select("-__v") // Optional: exclude version key
+//       .lean(); // Faster, plain JS objects
+
+//     projects.forEach((p) => {
+//       console.log(
+//         `Project ${p.name} (${p._id}): ${p.tasks?.length || 0} active tasks populated`
+//       );
+//     });
+
+//     res.json({
+//       success: true,
+//       data: projects,
+//       count: projects.length,
+//       message: projects.length
+//         ? "Projects retrieved successfully"
+//         : "No projects found in this team",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching projects by team:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch projects",
+//     });
+//   }
+// };
+
 export const getProjectsByTeam = async (req, res) => {
   console.log("Getting Projects By Team");
   try {
     const { teamId } = req.params;
     const userId = req.userId;
 
-    // ✅ Add this at the very top
     if (!mongoose.isValidObjectId(teamId)) {
       return res.status(400).json({ success: false, error: "Invalid team ID" });
     }
 
-    // === Auth Check ===
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Missing authentication",
-      });
+      return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
-    // === Find team and check membership ===
     const team = await teamModel.findById(teamId);
     if (!team || !team.isActive) {
-      return res.status(404).json({
-        success: false,
-        error: "Team not found or inactive",
-      });
+      return res.status(404).json({ success: false, error: "Team not found or inactive" });
     }
 
     if (!team.isUserMember(userId)) {
-      return res.status(403).json({
-        success: false,
-        error: "Access denied: You are not a member of this team",
-      });
+      return res.status(403).json({ success: false, error: "Access denied" });
     }
-    // === Fetch active projects for the team ===
+
+    // Get basic project data
     const projects = await projectModel
       .find({ teamId: team._id, isActive: true })
-      .populate({
-        path: "tasks",
-        match: { isActive: true },
-        select: "status dueDate isActive",
-      })
-      .sort({ createdAt: -1 }) // Newest first
-      .select("-__v") // Optional: exclude version key
-      .lean(); // Faster, plain JS objects
+      .sort({ createdAt: -1 })
+      .select("_id name description color") // Only needed fields
+      .lean();
 
-    projects.forEach((p) => {
-      console.log(
-        `Project ${p.name} (${p._id}): ${p.tasks?.length || 0} active tasks populated`
-      );
+    // Get active task counts for all projects in one query
+    const projectIds = projects.map(p => p._id);
+    const taskCounts = await taskModel.aggregate([
+      {
+        $match: {
+          projectId: { $in: projectIds },
+          isActive: true
+        }
+      },
+      {
+        $group: {
+          _id: "$projectId",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Map counts back to projects
+    const countsMap = new Map(taskCounts.map(c => [c._id.toString(), c.count]));
+    const enrichedProjects = projects.map(p => ({
+      ...p,
+      activeTaskCount: countsMap.get(p._id.toString()) || 0
+    }));
+
+    // Optional: log for debugging
+    enrichedProjects.forEach(p => {
+      console.log(`Project ${p.name} (${p._id}): ${p.activeTaskCount} active tasks`);
     });
 
     res.json({
       success: true,
-      data: projects,
-      count: projects.length,
-      message: projects.length
-        ? "Projects retrieved successfully"
-        : "No projects found in this team",
+      data: enrichedProjects,
+      count: enrichedProjects.length,
+      message: enrichedProjects.length ? "Projects retrieved successfully" : "No projects found"
     });
   } catch (error) {
     console.error("Error fetching projects by team:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch projects",
-    });
+    res.status(500).json({ success: false, error: "Failed to fetch projects" });
   }
 };
 // Update project - Done ✅
