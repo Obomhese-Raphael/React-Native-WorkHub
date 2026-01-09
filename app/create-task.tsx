@@ -54,7 +54,7 @@ export default function CreateTaskScreen() {
     };
 
     fetchProjects();
-  }, [getToken, selectedProjectId]); // ← Add selectedProjectId as dependency
+  }, []); // ← Add selectedProjectId as dependency
   
   const handleCreate = async () => {
     if (!title.trim()) {
