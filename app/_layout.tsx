@@ -1,7 +1,8 @@
 import { RefreshProvider } from "@/context/RefreshContext";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache"; // assuming you're using this
-import { Stack } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Slot } from "expo-router";
 import "./globals.css";
 
 const PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
@@ -14,10 +15,15 @@ if (!PUBLISHABLE_KEY || !PUBLISHABLE_KEY.startsWith("pk_test_")) {
 
 export default function RootLayout() {
   return (
-    <RefreshProvider>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} tokenCache={tokenCache}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ClerkProvider>
-    </RefreshProvider>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      <RefreshProvider>
+        <LinearGradient
+          colors={["#0f172a", "#1e293b", "#0f172a"]}
+          className="flex-1"
+        >
+          <Slot />
+        </LinearGradient>
+      </RefreshProvider>
+    </ClerkProvider>
   );
 }
