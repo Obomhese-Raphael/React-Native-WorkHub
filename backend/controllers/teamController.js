@@ -5,7 +5,6 @@ import teamModel from "../models/Team.js";
 const createTeam = async (req, res) => {
   try {
     const { name, description, color } = req.body;
-    console.log("Checking req body in createTeam:", req.body);
     const userId = req.userId;
     const createdBy = req.userId;
     // Fallbacks if Clerk doesn't provide name/email

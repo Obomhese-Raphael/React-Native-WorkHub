@@ -13,12 +13,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// app/my-work.tsx
 type Task = {
   _id: string;
   title: string;
-  status: "open" | "in-progress" | "done";
+  status: "todo" | "in-progress" | "done"; // Match backend enum
   priority: "low" | "medium" | "high" | "urgent";
-  project?: {
+  projectId?: { 
     _id: string;
     name: string;
   };
@@ -29,11 +30,12 @@ export default function MyWorkScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {  
+  useEffect(() => {
     const fetchMyTasks = async () => {
       try {
         const token = await getToken();
         const res = await api("/tasks/my-tasks", token);
+        console.log("Raw Task Data:", JSON.stringify(res.data, null, 2)); // Add this line
         setTasks(res.data?.data || []);
       } catch (err) {
         console.error("Failed to load my work", err);
@@ -54,9 +56,7 @@ export default function MyWorkScreen() {
         <ScrollView className="px-6 pt-6">
           {/* Header */}
           <View className="flex-row justify-between items-center mb-8">
-            <Text className="text-3xl font-black text-white">
-              My Work
-            </Text>
+            <Text className="text-3xl font-black text-white">My Work</Text>
             <TouchableOpacity
               onPress={() => router.push("/create-task")}
               className="bg-blue-600 p-3 rounded-xl"
@@ -84,9 +84,9 @@ export default function MyWorkScreen() {
                     {task.title}
                   </Text>
 
-                  {task.project && (
+                  {task.projectId && (
                     <Text className="text-slate-400 text-xs mt-1">
-                      {task.project.name}
+                      {task.projectId.name}
                     </Text>
                   )}
 

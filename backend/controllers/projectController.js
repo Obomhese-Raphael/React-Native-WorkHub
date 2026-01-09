@@ -76,7 +76,6 @@ export const createProject = async (req, res) => {
 };
 // Get projects by team - Done ✅
 export const getProjectsByTeam = async (req, res) => {
-  console.log("Getting Projects By Team");
   try {
     const { teamId } = req.params;
     const userId = req.userId;
@@ -120,12 +119,6 @@ export const getProjectsByTeam = async (req, res) => {
       .sort({ createdAt: -1 }) // Newest first
       .select("-__v") // Optional: exclude version key
       .lean(); // Faster, plain JS objects
-
-    projects.forEach((p) => {
-      console.log(
-        `Project ${p.name} (${p._id}): ${p.tasks?.length || 0} active tasks populated`
-      );
-    });
 
     res.json({
       success: true,

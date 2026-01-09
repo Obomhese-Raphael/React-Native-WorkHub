@@ -17,6 +17,15 @@ export const createTask = async (req, res) => {
     const userId = req.userId;
     const project = req.project; // Enriched with projectMembers from middleware
 
+
+    // --- ADD THIS LOGIC ---
+    // If no assignees are provided, default to assigning the creator
+    if (assignees.length === 0) {
+      assignees = [{ userId: userId }];
+    }
+    // ----------------------
+
+    
     if (!title || title.trim() === "") {
       return res
         .status(400)
@@ -131,15 +140,22 @@ export const createTask = async (req, res) => {
 };
 
 // Get all tasks
+// backend/controllers/taskController.js
 export const getMyTasks = async (req, res) => {
   try {
     const userId = req.userId;
+    console.log("Fetching user id for tasks: ", userId);
 
-    const tasks = await taskModel.find({
-      assignedTo: userId,
-    })
+    // Search for the userId inside the assignees array
+    const tasks = await taskModel
+      .find({
+        "assignees.userId": userId, // This checks every object in the array
+        isActive: true,
+      })
       .populate("projectId", "name")
       .sort({ createdAt: -1 });
+
+    console.log("Tasks: ", tasks);
 
     res.status(200).json({
       success: true,
@@ -147,10 +163,7 @@ export const getMyTasks = async (req, res) => {
     });
   } catch (err) {
     console.error("Get my tasks error:", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch user tasks",
-    });
+    res.status(500).json({ success: false, error: "Failed to fetch tasks" });
   }
 };
 
@@ -593,8 +606,8 @@ export const searchTasks = async (req, res) => {
     const userTeams = await teamModel
       .find({
         $or: [
-          { "members.userId": userId },   // User is a member
-          { createdBy: userId }           // User created the team (admin)
+          { "members.userId": userId }, // User is a member
+          { createdBy: userId }, // User created the team (admin)
         ],
         isActive: true,
       })
@@ -609,7 +622,7 @@ export const searchTasks = async (req, res) => {
       });
     }
 
-    const teamIds = userTeams.map(t => t._id);
+    const teamIds = userTeams.map((t) => t._id);
 
     // Step 2: Find all active projects in those teams
     const userProjects = await projectModel
@@ -620,10 +633,14 @@ export const searchTasks = async (req, res) => {
       .select("_id name")
       .lean();
 
-    const projectIds = userProjects.map(p => p._id);
+    const projectIds = userProjects.map((p) => p._id);
 
     if (projectIds.length === 0) {
-      return res.json({ success: true, data: [], message: "No projects found" });
+      return res.json({
+        success: true,
+        data: [],
+        message: "No projects found",
+      });
     }
 
     // Step 3: Search tasks
@@ -631,10 +648,7 @@ export const searchTasks = async (req, res) => {
       .find({
         projectId: { $in: projectIds },
         isActive: true,
-        $or: [
-          { title: searchRegex },
-          { description: searchRegex },
-        ],
+        $or: [{ title: searchRegex }, { description: searchRegex }],
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -642,7 +656,7 @@ export const searchTasks = async (req, res) => {
 
     // Step 4: Enrich with real Clerk data
     const enrichedTasks = await Promise.all(
-      tasks.map(task => enrichTaskWithClerkData(task))
+      tasks.map((task) => enrichTaskWithClerkData(task))
     );
 
     res.json({

@@ -77,7 +77,6 @@ export default function HomeScreen() {
   const logToken = async () => {
     try {
       const token = await getToken();
-      console.log("Clerk Token Debug:", token);
       Alert.alert("Authentication System", "Session token logged to console.");
     } catch (err) {
       console.error("Failed to get token:", err);
