@@ -209,7 +209,7 @@ export default function TeamDetailsScreen() {
             <View className="space-y-5 pb-10">
               {team.projects.map((project) => (
                 <TouchableOpacity
-                  key={project._id}
+                  key={project._id}   
                   onPress={() => router.push(`/projects/${project._id}`)}
                   className="bg-slate-800/40 rounded-2xl p-6 border border-slate-700/50 flex-row items-center"
                 >
