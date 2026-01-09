@@ -35,7 +35,6 @@ export default function MyWorkScreen() {
       try {
         const token = await getToken();
         const res = await api("/tasks/my-tasks", token);
-        console.log("Raw Task Data:", JSON.stringify(res.data, null, 2)); // Add this line
         setTasks(res.data?.data || []);
       } catch (err) {
         console.error("Failed to load my work", err);

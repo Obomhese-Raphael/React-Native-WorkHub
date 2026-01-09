@@ -6,7 +6,7 @@ import { getClerkUserDetails } from "../utils/clerkUser.js";
 // Create a new task - Done ✅
 export const createTask = async (req, res) => {
   try {
-    const {
+    let {
       title,
       description,
       status,
@@ -144,18 +144,17 @@ export const createTask = async (req, res) => {
 export const getMyTasks = async (req, res) => {
   try {
     const userId = req.userId;
-    console.log("Fetching user id for tasks: ", userId);
 
-    // Search for the userId inside the assignees array
     const tasks = await taskModel
       .find({
-        "assignees.userId": userId, // This checks every object in the array
         isActive: true,
+        $or: [
+          { "assignees.userId": userId },
+          { createdBy: userId },
+        ],
       })
       .populate("projectId", "name")
       .sort({ createdAt: -1 });
-
-    console.log("Tasks: ", tasks);
 
     res.status(200).json({
       success: true,
@@ -166,6 +165,7 @@ export const getMyTasks = async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to fetch tasks" });
   }
 };
+
 
 // Get tasks for a project - Done ✅
 export const getTasksByProject = async (req, res) => {
