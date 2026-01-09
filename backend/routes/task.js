@@ -25,7 +25,7 @@ if (
   taskRouter.use(getUserInfo);
 }
 
-taskRouter.route("/my-tasks").get(requireProjectAccess, getMyTasks);
+taskRouter.route("/my-tasks").get(getMyTasks);
 
 taskRouter
   .route("/:projectId/tasks")
