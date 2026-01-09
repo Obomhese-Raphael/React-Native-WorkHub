@@ -1,10 +1,9 @@
-// app/create-task.tsx
 import { api } from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,63 +17,51 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const priorities = [
-  { label: "Urgent", value: "urgent", color: "#ef4444" },
-  { label: "High", value: "high", color: "#f97316" },
-  { label: "Medium", value: "medium", color: "#eab308" },
-  { label: "Low", value: "low", color: "#22c55e" },
-];
-
 export default function CreateTaskScreen() {
   const { getToken } = useAuth();
-
   const [projects, setProjects] = useState<{ _id: string; name: string }[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [title, setTitle] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState("medium");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         const token = await getToken();
-        const res = await api("/projects", token);
+        const res = await api("/projects", token); // ← ADD /api HERE
+        // Backend returns { success: true, data: [...] }
         const projectData = res.data?.data || res.data || [];
 
         setProjects(projectData);
 
-        // ← ONLY set default if nothing is selected yet
         if (projectData.length > 0 && !selectedProjectId) {
           setSelectedProjectId(projectData[0]._id);
         }
       } catch (err: any) {
         console.error("Task Module: Failed to sync parent projects", err);
-        Alert.alert("Sync Failed", "Unable to load projects.");
+        Alert.alert(
+          "Sync Failed",
+          "Unable to load projects. Check your connection and try again."
+        );
       }
     };
 
     fetchProjects();
-  }, []); // ← Add selectedProjectId as dependency
-  
+  }, [getToken]);
+
   const handleCreate = async () => {
-    if (!title.trim()) {
-      return Alert.alert("Required", "Task title cannot be empty.");
-    }
-    if (!selectedProjectId) {
+    if (!title.trim())
+      return Alert.alert("Required", "Task description cannot be empty.");
+    if (!selectedProjectId)
       return Alert.alert("Missing Node", "Please select a parent project.");
-    }
 
     setLoading(true);
     try {
       const token = await getToken();
       await api(`/tasks/${selectedProjectId}/tasks`, token, {
         method: "POST",
-        body: JSON.stringify({
-          title: title.trim(),
-          priority: selectedPriority, // ← Now sent to backend
-        }),
+        body: JSON.stringify({ title: title.trim() }),
       });
-
       Alert.alert("Task Deployed", "Action item added to project queue.", [
         { text: "Acknowledge", onPress: () => router.back() },
       ]);
@@ -108,7 +95,7 @@ export default function CreateTaskScreen() {
                 <Ionicons name="chevron-back" size={24} color="#94a3b8" />
               </TouchableOpacity>
               <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-[4px]">
-                Task.Deployment
+                Task.Initialization
               </Text>
               <View className="w-12" />
             </View>
@@ -118,7 +105,7 @@ export default function CreateTaskScreen() {
                 New Task
               </Text>
               <Text className="text-slate-400 mt-2 font-medium">
-                Deploy a tactical action item.
+                Create a tactical action item.
               </Text>
             </View>
 
@@ -140,7 +127,7 @@ export default function CreateTaskScreen() {
                       <TouchableOpacity
                         key={proj._id}
                         onPress={() => setSelectedProjectId(proj._id)}
-                        className={`mr-3 mb-3 px-6 py-3 rounded-2xl border ${
+                        className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
                           selectedProjectId === proj._id
                             ? "border-blue-500 bg-blue-500/10"
                             : "border-slate-700 bg-slate-800/40"
@@ -163,7 +150,7 @@ export default function CreateTaskScreen() {
 
               {/* Task Title */}
               <View>
-                <Text className="text-slate-500 mt-5 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">
+                <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
                   Action Item Title
                 </Text>
                 <TextInput
@@ -172,70 +159,40 @@ export default function CreateTaskScreen() {
                   placeholderTextColor="#475569"
                   value={title}
                   onChangeText={setTitle}
-                  autoFocus
+                  autoFocus={true}
                 />
-              </View>
-
-              {/* Priority Level Selector */}
-              <View>
-                <Text className="text-slate-400 mt-5 text-xs uppercase tracking-widest font-black mb-4 ml-1">
-                  Priority Level
-                </Text>
-                <View className="flex-row flex-wrap justify-between gap-3">
-                  {priorities.map((p) => (
-                    <TouchableOpacity
-                      key={p.value}
-                      onPress={() => setSelectedPriority(p.value)}
-                      className={`
-                        flex-1 py-5 rounded-xl border-2 items-center
-                        ${
-                          selectedPriority === p.value
-                            ? "border-white bg-white/10 shadow-lg"
-                            : "border-slate-700 bg-slate-800/50"
-                        }
-                      `}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        className="text-sm font-black uppercase tracking-wider"
-                        style={{ color: p.color }}
-                      >
-                        {p.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
               </View>
 
               {/* Submit Button */}
               <TouchableOpacity
                 onPress={handleCreate}
                 disabled={loading}
-                className="overflow-hidden rounded-2xl mt-8"
+                activeOpacity={0.8}
+                className="mt-6 overflow-hidden rounded-2xl"
               >
                 <LinearGradient
                   colors={["#3b82f6", "#1d4ed8"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  className="py-6 flex-row justify-center items-center"
+                  className="py-5 flex-row justify-center items-center"
                 >
                   {loading ? (
                     <ActivityIndicator color="white" />
                   ) : (
                     <>
-                      <Text className="text-white text-xl font-black uppercase tracking-widest mr-3">
+                      <Text className="text-white text-center text-lg font-black uppercase tracking-widest mr-2">
                         Deploy Task
                       </Text>
-                      <Feather name="zap" size={24} color="white" />
+                      <Feather name="check-circle" size={20} color="white" />
                     </>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
 
               {/* System Info */}
-              <View className="items-center mt-12">
-                <Text className="text-slate-600 text-[10px] font-bold tracking-tight uppercase">
-                  Status: Open • Encrypted Transmission
+              <View className="items-center mt-10">
+                <Text className="text-slate-600 text-[10px] font-bold tracking-tight">
+                  PRIORITY: NORMAL • STATUS: OPEN • ENCRYPTED
                 </Text>
               </View>
             </View>

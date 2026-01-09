@@ -228,7 +228,7 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             className="mb-10"
-          >    
+          >
             {teams.length === 0 ? (
               <Text className="text-slate-500 italic">
                 No active teams assigned.
@@ -307,8 +307,8 @@ export default function HomeScreen() {
                   className="bg-slate-800/20 border border-slate-700/40 rounded-3xl p-5 mb-4 flex-row items-center justify-between"
                   onPress={() =>
                     router.push({
-                      pathname: "/details/[projectId]",
-                      params: { projectId: project._id },
+                      pathname: "/projects/[projectId]", // ← Keep brackets here
+                      params: { projectId: project._id }, // ← param name MUST match the [segment]
                     })
                   }
                 >
@@ -325,7 +325,7 @@ export default function HomeScreen() {
                   </View>
                   <View className="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
                     <Text className="text-sky-400 text-[10px] font-black">
-                      {project.tasks?.length || 0} ACTIVE
+                      {project.tasks?.length || 0} ACTIVEd
                     </Text>
                   </View>
                 </TouchableOpacity>

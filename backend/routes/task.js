@@ -3,6 +3,7 @@ import {
   archiveTask,
   createTask,
   deleteTask,
+  getMyTasks,
   getTaskById,
   getTasksByProject,
   reorderTasks,
@@ -23,6 +24,8 @@ if (
   taskRouter.use(requireAuth);
   taskRouter.use(getUserInfo);
 }
+
+taskRouter.route("/my-tasks").get(requireProjectAccess, getMyTasks);
 
 taskRouter
   .route("/:projectId/tasks")
