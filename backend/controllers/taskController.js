@@ -456,46 +456,72 @@ export const updateTask = async (req, res) => {
 };
 
 // Delete a task - Done ✅
+// export const deleteTask = async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
+
+//     // Find the task and ensure it belongs to the authenticated user's project
+//     // (req.project is already attached and validated by requireProjectAccess middleware)
+//     const task = await taskModel.findOne({
+//       _id: taskId,
+//       projectId: req.project._id,
+//       isActive: true,
+//     });
+
+//     if (!task) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Task not found or already deleted",
+//       });
+//     }
+
+//     // Soft delete: mark as inactive
+//     task.isActive = false;
+//     task.deletedAt = new Date(); // Optional: for future trash/recovery features
+//     task.deletedBy = req.userId; // Optional: track who deleted it
+
+//     await task.save();
+
+//     // Optional: Reorder remaining tasks to fill the gap (if you want continuous order)
+//     // You can add this later if drag-and-drop feels off after deletions
+
+//     res.json({
+//       success: true,
+//       message: "Task moved to trash successfully",
+//       data: { taskId: task._id },
+//     });
+//   } catch (error) {
+//     console.error("Error deleting task:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to delete task",
+//     });
+//   }
+// };
+
+// backend/controllers/taskController.js
 export const deleteTask = async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    // Find the task and ensure it belongs to the authenticated user's project
-    // (req.project is already attached and validated by requireProjectAccess middleware)
-    const task = await taskModel.findOne({
-      _id: taskId,
-      projectId: req.project._id,
-      isActive: true,
-    });
+    // Use findOneAndUpdate to mark as inactive (Soft Delete)
+    const task = await taskModel.findOneAndUpdate(
+      { _id: taskId, projectId: req.project._id },
+      { 
+        isActive: false, 
+        deletedAt: new Date(),
+        deletedBy: req.userId 
+      },
+      { new: true }
+    );
 
     if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: "Task not found or already deleted",
-      });
+      return res.status(404).json({ success: false, error: "Task not found" });
     }
 
-    // Soft delete: mark as inactive
-    task.isActive = false;
-    task.deletedAt = new Date(); // Optional: for future trash/recovery features
-    task.deletedBy = req.userId; // Optional: track who deleted it
-
-    await task.save();
-
-    // Optional: Reorder remaining tasks to fill the gap (if you want continuous order)
-    // You can add this later if drag-and-drop feels off after deletions
-
-    res.json({
-      success: true,
-      message: "Task moved to trash successfully",
-      data: { taskId: task._id },
-    });
+    res.json({ success: true, message: "Task moved to trash" });
   } catch (error) {
-    console.error("Error deleting task:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to delete task",
-    });
+    res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
@@ -544,45 +570,6 @@ export const reorderTasks = async (req, res) => {
 };
 
 // Archive a task - Done ✅
-// export const archiveTask = async (req, res) => {
-//   try {
-//     const { taskId } = req.params;
-//     const archivedBy = req.userId;
-
-//     const task = await taskModel.findOne({
-//       _id: taskId,
-//       projectId: req.project._id,
-//       isActive: true,
-//     });
-
-//     if (!task) {
-//       return res.status(404).json({
-//         success: false,
-//         error: "Task not found or already archived",
-//       });
-//     }
-
-//     // Soft archive
-//     task.isActive = false;
-//     task.archivedAt = new Date();
-//     task.archivedBy = archivedBy; // Optional: track who archived it
-
-//     await task.save();
-
-//     res.json({
-//       success: true,
-//       message: "Task archived successfully",
-//       data: { taskId: task._id },
-//     });
-//   } catch (error) {
-//     console.error("Error archiving task:", error);
-//     res.status(500).json({
-//       success: false,
-//       error: "Failed to archive task",
-//     });
-//   }
-// };
-
 // Archive a task
 export const archiveTask = async (req, res) => {
   try {

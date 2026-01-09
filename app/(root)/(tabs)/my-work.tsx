@@ -45,16 +45,38 @@ export default function MyWorkScreen() {
   const performAction = async (taskId: string, type: "delete" | "archive") => {
     try {
       const token = await getToken();
+
+      // 1. Find the specific task to get its projectId
+      const taskToProcess = tasks.find((t) => t._id === taskId);
+      const pId = taskToProcess?.projectId?._id;
+
+      if (!pId) {
+        Alert.alert("Error", "Could not find associated project ID");
+        return;
+      }
+
+      // 2. Use the correct URL structure required by your taskRouter
       const endpoint =
         type === "delete"
-          ? `/tasks/${taskId}/delete`
-          : `/tasks/${taskId}/archive`;
-      await api(endpoint, token, { method: "PATCH" }); // Usually PATCH for soft updates
+          ? `/${pId}/tasks/${taskId}` // Matches .delete() route
+          : `/${pId}/tasks/${taskId}/archive`; // Matches .patch() route
 
-      // Remove from local state immediately
-      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      // 3. Ensure the method matches your router (DELETE for delete, PATCH for archive)
+      const method = type === "delete" ? "DELETE" : "PATCH";
+
+      const res = await api(endpoint, token, { method });
+
+      if (res.data?.success) {
+        setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      } else {
+        throw new Error(res.data?.error || "Action failed");
+      }
     } catch (err) {
-      Alert.alert("Error", `Failed to ${type} task`);
+      console.error(`Error during ${type}:`, err);
+      Alert.alert(
+        "Error",
+        `Failed to ${type} task. Check console for details.`
+      );
     }
   };
 
