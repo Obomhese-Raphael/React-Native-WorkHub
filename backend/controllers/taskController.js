@@ -538,6 +538,11 @@ export const archiveTask = async (req, res) => {
       isActive: true,
       $or: [{ createdBy: userId }, { "assignees.userId": userId }],
     });
+    // const task = await taskModel.findOne({
+    //   _id: id,
+    //   isActive: true,
+    //   $or: [{ createdBy: userId }, { "assignees.userId": userId }],
+    // });
 
     if (!task) {
       return res
