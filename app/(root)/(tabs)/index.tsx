@@ -84,7 +84,7 @@ export default function HomeScreen() {
   };  
 
   // --- Logic: Fetch Data ---  
-  const fetchHomeData = async () => {         
+  const fetchHomeData = async () => {           
     try {
       setLoading(true);
       const token = await getToken();
