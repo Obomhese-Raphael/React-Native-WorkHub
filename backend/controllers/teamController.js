@@ -1,5 +1,9 @@
+import { createClerkClient } from "@clerk/backend";
 // import { useUser } from "@clerk/clerk-expo";
 import teamModel from "../models/Team.js";
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
 
 // Create Team - Done ✅
 const createTeam = async (req, res) => {
@@ -8,7 +12,9 @@ const createTeam = async (req, res) => {
 
     // 1. Validation: Ensure name exists before trimming
     if (!name || name.trim() === "") {
-      return res.status(400).json({ success: false, error: "Team name is required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Team name is required" });
     }
 
     console.log("Checking req body in createTeam:", req.body);
@@ -176,6 +182,52 @@ const addMember = async (req, res) => {
       error: "Failed to add member",
     });
   }
+};r
+
+// Invite Team Member via Clerk 
+const inviteTeamMember = async (req, res) => {
+  try {
+    const teamId = req.params.id;
+    const { email, role = "member" } = req.body;
+    const adminId = req.userId; // Set by your auth middleware
+
+    // 1. Validation: Is the requester an admin of this team?
+    const team = await teamModel.findById(teamId);
+    if (!team)
+      return res.status(404).json({ success: false, error: "Team not found" });
+
+    const requester = team.members.find((m) => m.userId === adminId);
+    if (!requester || requester.role !== "admin") {
+      return res
+        .status(403)
+        .json({ success: false, error: "Only admins can invite members" });
+    }
+
+    // 2. Send Invitation via Clerk
+    // We store the teamId in metadata so it follows the user during signup
+    const invitation = await clerkClient.invitations.createInvitation({
+      emailAddress: email,
+      redirectUrl: process.env.APP_URL + "/sign-up", // Where they go after clicking link
+      publicMetadata: {
+        joinedViaInvite: true,
+        pendingTeamId: teamId,
+        pendingRole: role,
+      },
+      ignoreExisting: false, // Set to true if you want to allow re-inviting existing users
+    });
+
+    res.json({
+      success: true,
+      message: `Invitation sent to ${email}`,
+      data: invitation,
+    });
+  } catch (error) {
+    console.error("Clerk Invite Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to send invite",
+    });
+  }
 };
 
 // Delete Team (Soft Delete) - Done ✅
@@ -304,4 +356,5 @@ export default {
   deleteMember,
   getAllTeams,
   searchTeams,
+  inviteTeamMember,
 };

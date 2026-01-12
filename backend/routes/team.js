@@ -8,7 +8,10 @@ dotenv.config();
 const teamsRouter = express.Router();
 
 // Auth middleware
-if (process.env.NODE_ENV === "development" && process.env.BYPASS_AUTH === "true") {
+if (
+  process.env.NODE_ENV === "development" &&
+  process.env.BYPASS_AUTH === "true"
+) {
   teamsRouter.use(devBypassAuth);
   console.log("🔓 Development auth bypass ENABLED");
 } else {
@@ -32,6 +35,8 @@ teamsRouter.put("/:id", teamController.updateTeam);
 teamsRouter.delete("/:id", teamController.deleteTeam);
 // Add member
 teamsRouter.put("/:id/add-member", teamController.addMember);
+// Invite member
+teamsRouter.post("/:id/invites", teamController.inviteTeamMember);
 // Remove member by email (most user-friendly)
 teamsRouter.delete("/:id/members/:email", teamController.deleteMember);
 

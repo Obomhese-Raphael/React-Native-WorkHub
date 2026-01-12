@@ -88,6 +88,7 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       const token = await getToken();
+      console.log("Fetched Token:", token);  
       if (!token) throw new Error("Not authenticated");
 
       // 1. Fetch user's teams
