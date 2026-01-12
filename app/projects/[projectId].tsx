@@ -244,7 +244,11 @@ export default function ProjectTaskBoard() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="flex-1 px-6"
+          className="flex-1"
+          contentContainerStyle={{
+            paddingHorizontal: 24, // Keeps the start/end spacing consistent
+            paddingRight: 48, // Extra padding to ensure 'Done' isn't flush against the edge
+          }}
         >
           <View className="flex-row" style={{ gap: 24 }}>
             {columns.map((column) => (

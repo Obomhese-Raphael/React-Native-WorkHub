@@ -1,11 +1,10 @@
 import { api } from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -18,11 +17,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateTaskScreen() {
+  const { projectId, taskId } = useLocalSearchParams<{
+    projectId: string;
+    taskId: string;
+  }>();
+  const [currentProjectName, setCurrentProjectName] = useState("");
+  const isEditMode = !!taskId;
   const { getToken } = useAuth();
   const [projects, setProjects] = useState<{ _id: string; name: string }[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [assignees, setAssignees] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -50,27 +57,73 @@ export default function CreateTaskScreen() {
     fetchProjects();
   }, [getToken]);
 
-  const handleCreate = async () => {
-    if (!title.trim())
-      return Alert.alert("Required", "Task description cannot be empty.");
-    if (!selectedProjectId)
-      return Alert.alert("Missing Node", "Please select a parent project.");
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchTaskForEdit = async () => {
+        try {
+          const token = await getToken();
+          const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
+
+          if (res.data) {
+            setTitle(res.data.title);
+            setDescription(res.data.description || "");
+            setPriority(res.data.priority);
+            setCurrentProjectName(
+              res.data.projectId?.name || "Unknown Project"
+            );
+            // Set other fields like assignees here
+          }
+        } catch (err) {
+          Alert.alert("Error", "Failed to load task for editing");
+        }
+      };
+      fetchTaskForEdit();
+    }
+  }, [taskId]);
+
+  const handleSubmit = async () => {
+    if (!title.trim()) return Alert.alert("Error", "Title is required");
+    // Only require a project selection if we are NOT in edit mode
+    // (because in edit mode, the project is already established)
+    if (!isEditMode && !selectedProjectId)
+      return Alert.alert("Error", "Please select a project");
 
     setLoading(true);
     try {
       const token = await getToken();
-      await api(`/tasks/${selectedProjectId}/tasks`, token, {
-        method: "POST",
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-        }),
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+      };
+
+      // Use selectedProjectId for NEW tasks, or the projectId from params for EDITS
+      const targetProjectId = isEditMode ? projectId : selectedProjectId;
+      const endpoint = isEditMode
+        ? `/tasks/${targetProjectId}/tasks/${taskId}`
+        : `/tasks/${targetProjectId}/tasks`;
+
+      const method = isEditMode ? "PUT" : "POST";
+
+      const res = await api(endpoint, token, {
+        method,
+        body: JSON.stringify(payload),
       });
-      Alert.alert("Task Deployed", "Action item added to project queue.", [
-        { text: "Acknowledge", onPress: () => router.back() },
-      ]);
+
+      if (res.success) {
+        if (isEditMode) {
+          router.back();
+        } else {
+          Alert.alert("Success", "Task deployed", [
+            { text: "OK", onPress: () => router.back() },
+          ]);
+        }
+      }
     } catch (err: any) {
-      Alert.alert("Critical Error", err.message || "Failed to deploy task");
+      Alert.alert(
+        "Error",
+        `Failed to ${isEditMode ? "update" : "deploy"} task`
+      );
     } finally {
       setLoading(false);
     }
@@ -106,7 +159,7 @@ export default function CreateTaskScreen() {
 
             <View className="mb-10">
               <Text className="text-4xl font-black text-white tracking-tight">
-                New Task
+                {isEditMode ? "Edit Task" : "New Task"}
               </Text>
               <Text className="text-slate-400 mt-2 font-medium">
                 Create a tactical action item.
@@ -115,7 +168,7 @@ export default function CreateTaskScreen() {
 
             <View className="space-y-8 pb-10">
               {/* Parent Project Selection */}
-              <View>
+              {/* <View>
                 <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
                   Parent Project Node
                 </Text>
@@ -150,8 +203,67 @@ export default function CreateTaskScreen() {
                     ))
                   )}
                 </View>
-              </View>
+              </View> */}
 
+              {/* Parent Project Selection - Hidden in Edit Mode */}
+              {!isEditMode && (
+                <View>
+                  <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
+                    Parent Project Node
+                  </Text>
+                  <View className="flex-row flex-wrap">
+                    {projects.length === 0 ? (
+                      <View className="bg-slate-800/20 border border-dashed border-slate-700 p-4 rounded-2xl w-full">
+                        <Text className="text-slate-500 text-xs italic">
+                          No projects detected in ecosystem.
+                        </Text>
+                      </View>
+                    ) : (
+                      projects.map((proj) => (
+                        <TouchableOpacity
+                          key={proj._id}
+                          onPress={() => setSelectedProjectId(proj._id)}
+                          className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
+                            selectedProjectId === proj._id
+                              ? "border-blue-500 bg-blue-500/10"
+                              : "border-slate-700 bg-slate-800/40"
+                          }`}
+                        >
+                          <Text
+                            className={`font-bold text-sm ${
+                              selectedProjectId === proj._id
+                                ? "text-blue-400"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {proj.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Project Context - Shown ONLY in Edit Mode */}
+              {isEditMode && currentProjectName && (
+                <View className="mb-6 bg-blue-500/5 border border-blue-500/20 p-4 rounded-2xl flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1">
+                      Current Project Node
+                    </Text>
+                    <Text className="text-white text-lg font-bold">
+                      {currentProjectName}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="lock-closed"
+                    size={20}
+                    color="#60a5fa"
+                    opacity={0.5}
+                  />
+                </View>
+              )}
               {/* Task Title */}
               <View>
                 <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
@@ -185,30 +297,28 @@ export default function CreateTaskScreen() {
 
               {/* Submit Button */}
               <TouchableOpacity
-                onPress={handleCreate}
+                onPress={handleSubmit} // Use the new unified function
                 disabled={loading}
                 activeOpacity={0.8}
                 className="mt-6 overflow-hidden rounded-2xl"
               >
                 <LinearGradient
-                  colors={["#3b82f6", "#1d4ed8"]}
+                  colors={
+                    isEditMode ? ["#60a5fa", "#2563eb"] : ["#3b82f6", "#1d4ed8"]
+                  }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   className="py-5 flex-row justify-center items-center"
                 >
-                  {loading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <>
-                      <Text className="text-white text-center text-lg font-black uppercase tracking-widest mr-2">
-                        Deploy Task
-                      </Text>
-                      <Feather name="check-circle" size={20} color="white" />
-                    </>
-                  )}
+                  <Text className="text-white text-center text-lg font-black uppercase tracking-widest mr-2">
+                    {loading
+                      ? "Processing..."
+                      : isEditMode
+                        ? "Update Task"
+                        : "Deploy Task"}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
-
               {/* System Info */}
               <View className="items-center mt-10">
                 <Text className="text-slate-600 text-[10px] font-bold tracking-tight">

@@ -148,6 +148,19 @@ export default function MyWorkScreen() {
                   key={task._id}
                   className="bg-slate-800/50 border mb-5 border-slate-700 rounded-2xl p-5"
                   activeOpacity={0.7}
+                  onPress={() => {
+                    const rawProjectId = task.projectId;
+                    router.push({
+                      pathname: "/task/[taskId]",
+                      params: {
+                        taskId: task._id,
+                        projectId:
+                          typeof rawProjectId === "string"
+                            ? rawProjectId
+                            : rawProjectId?._id,
+                      },
+                    });
+                  }}
                 >
                   {/* Top Row: Title & Icons */}
                   <View className="flex-row justify-between items-start">

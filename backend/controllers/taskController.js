@@ -1,3 +1,4 @@
+import clerkClient from "@clerk/clerk-sdk-node";
 import projectModel from "../models/Project.js";
 import taskModel from "../models/Task.js";
 import teamModel from "../models/Team.js";
@@ -283,6 +284,7 @@ export const getTaskById = async (req, res) => {
         isActive: true,
       })
       .populate("projectId", "name title") // Support both name and title fields
+      .populate("assignees.userId", "name email") // Populate assignee user details
       .lean();
 
     if (!task) {
