@@ -34,7 +34,7 @@ app.use(
 // 1. WEBHOOK FIRST 🚨
 app.use("/api/webhooks", webhookRouter);
 // 2. JSON Parsing & Clerk Auth
-app.use("/api", express.json());
+app.use(express.json());
 // 3. Clerk Middleware
 app.use(clerkMiddleware());
 
