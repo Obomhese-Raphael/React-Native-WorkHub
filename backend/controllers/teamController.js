@@ -182,7 +182,7 @@ const addMember = async (req, res) => {
       error: "Failed to add member",
     });
   }
-};r
+};
 
 // Invite Team Member via Clerk 
 const inviteTeamMember = async (req, res) => {
