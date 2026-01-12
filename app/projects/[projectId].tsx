@@ -30,6 +30,10 @@ type Task = {
   assignees: Assignee[];
   assignedBy?: { name: string }; // From your backend: assignedBy is userId → enriched to name
   dueDate?: string;
+  projectId?: {
+    _id: string;
+    name: string;
+  };
 };
 
 type Column = {
@@ -125,12 +129,29 @@ export default function ProjectTaskBoard() {
       <TouchableOpacity
         activeOpacity={0.85}
         className="bg-slate-800/70 backdrop-blur border border-slate-700/60 rounded-2xl p-5 mb-5 shadow-lg"
-        onPress={() =>
-          Alert.alert(
-            "Task Details",
-            `${item.title}\n(Details screen coming soon)`
-          )
-        }
+        onPress={() => {
+          const rawProjectId = item.projectId;
+
+          console.log("Navigating to task:", {
+            taskId: item._id,
+            projectIdRaw: rawProjectId,
+            projectIdExtracted:
+              typeof rawProjectId === "string"
+                ? rawProjectId
+                : rawProjectId?._id,
+          });
+
+          router.push({
+            pathname: "/task/[taskId]",
+            params: {
+              taskId: item._id,
+              projectId:
+                typeof rawProjectId === "string"
+                  ? rawProjectId
+                  : rawProjectId?._id,
+            },
+          });
+        }}
       >
         {/* Title */}
         <Text className="text-white text-lg font-black tracking-tight mb-3">

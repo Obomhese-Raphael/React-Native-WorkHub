@@ -226,24 +226,46 @@ export const getTasksByProject = async (req, res) => {
 const enrichTaskWithClerkData = async (task) => {
   if (!task.assignees || task.assignees.length === 0) return task;
 
-  const userIds = task.assignees.filter((a) => a.userId).map((a) => a.userId);
+  // Extract user IDs as strings from populated objects
+  const userIds = task.assignees
+    .filter((a) => a.userId) // Filter out null/undefined
+    .map((a) => a.userId._id || a.userId.id || a.userId.toString()); // Get the ID string
 
   const uniqueUserIds = [...new Set(userIds)];
   const clerkUsers = {};
 
   if (uniqueUserIds.length > 0) {
-    const promises = uniqueUserIds.map(async (userId) => {
-      clerkUsers[userId] = await getClerkUserDetails(userId);
-    });
-    await Promise.all(promises);
+    try {
+      for (const userId of uniqueUserIds) {
+        const user = await clerkClient.users.getUser(userId);
+        clerkUsers[userId] = {
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
+          email: user.emailAddresses?.[0]?.emailAddress || 'No email',
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching Clerk users:', error);
+      // Fallback to populated data if Clerk fails
+    }
   }
 
+  // Enrich assignees with Clerk data or fallback to populated data
   const enrichedAssignees = task.assignees.map((assignee) => {
-    if (assignee.userId && clerkUsers[assignee.userId]) {
-      const { name, email } = clerkUsers[assignee.userId];
-      return { ...assignee, name, email };
+    const userId = assignee.userId?._id || assignee.userId?.id || assignee.userId?.toString();
+    if (userId && clerkUsers[userId]) {
+      return {
+        ...assignee,
+        name: clerkUsers[userId].name,
+        email: clerkUsers[userId].email,
+      };
+    } else {
+      // Fallback to populated data
+      return {
+        ...assignee,
+        name: assignee.userId?.name || assignee.name || 'Unknown',
+        email: assignee.userId?.email || assignee.email || 'No email',
+      };
     }
-    return assignee; // placeholder members unchanged
   });
 
   return { ...task, assignees: enrichedAssignees };
@@ -452,77 +474,7 @@ export const updateTask = async (req, res) => {
   }
 };
 
-// Delete a task - Done ✅
-// export const deleteTask = async (req, res) => {
-//   try {
-//     const { taskId } = req.params;
-
-//     // Find the task and ensure it belongs to the authenticated user's project
-//     // (req.project is already attached and validated by requireProjectAccess middleware)
-//     const task = await taskModel.findOne({
-//       _id: taskId,
-//       projectId: req.project._id,
-//       isActive: true,
-//     });
-
-//     if (!task) {
-//       return res.status(404).json({
-//         success: false,
-//         error: "Task not found or already deleted",
-//       });
-//     }
-
-//     // Soft delete: mark as inactive
-//     task.isActive = false;
-//     task.deletedAt = new Date(); // Optional: for future trash/recovery features
-//     task.deletedBy = req.userId; // Optional: track who deleted it
-
-//     await task.save();
-
-//     // Optional: Reorder remaining tasks to fill the gap (if you want continuous order)
-//     // You can add this later if drag-and-drop feels off after deletions
-
-//     res.json({
-//       success: true,
-//       message: "Task moved to trash successfully",
-//       data: { taskId: task._id },
-//     });
-//   } catch (error) {
-//     console.error("Error deleting task:", error);
-//     res.status(500).json({
-//       success: false,
-//       error: "Failed to delete task",
-//     });
-//   }
-// };
-
-// backend/controllers/taskController.js
-// export const deleteTask = async (req, res) => {
-//   try {
-//     const { taskId } = req.params;
-
-//     // Use findOneAndUpdate to mark as inactive (Soft Delete)
-//     const task = await taskModel.findOneAndUpdate(
-//       { _id: taskId, projectId: req.project._id },
-//       {
-//         isActive: false,
-//         deletedAt: new Date(),
-//         deletedBy: req.userId
-//       },
-//       { new: true }
-//     );
-
-//     if (!task) {
-//       return res.status(404).json({ success: false, error: "Task not found" });
-//     }
-
-//     res.json({ success: true, message: "Task moved to trash" });
-//   } catch (error) {
-//     res.status(500).json({ success: false, error: "Server error" });
-//   }
-// };
-
-// Archive a task (soft-delete by setting isActive to false)
+// Archive a task (soft-delete by setting isActive to false) - Done ✅
 export const archiveTask = async (req, res) => {
   try {
     const { taskId } = req.params; // Fix: Use taskId from params
@@ -559,7 +511,52 @@ export const archiveTask = async (req, res) => {
   }
 };
 
-// Delete a task (soft-delete by setting isActive to false, matching frontend expectation)
+// Unarchive a task (restore by setting isActive to true)
+export const unarchiveTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.userId;
+
+    console.log("Unarchive attempt - userId from middleware:", req.userId);
+    console.log("Task ID:", taskId);
+    console.log("Project ID from params:", req.params.projectId);
+
+    // Find the archived task and ensure the user is the creator or assignee
+    const task = await taskModel.findOne({
+      _id: taskId,
+      isActive: false, // Only restore if archived/deleted
+      $or: [{ createdBy: userId }, { "assignees.userId": userId }],
+    });
+
+    console.log("Task found for unarchiving:", task);
+
+    if (!task) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Task not found or access denied" });
+    }
+
+    // Restore the task
+    await taskModel.updateOne(
+      { _id: taskId },
+      {
+        isActive: true,
+        // Optionally clear deletion metadata if it was soft-deleted
+        $unset: { deletedAt: 1, deletedBy: 1 },
+        updatedAt: new Date(),
+      }
+    );
+
+    res
+      .status(200)
+      .json({ success: true, message: "Task unarchived successfully" });
+  } catch (error) {
+    console.error("Error unarchiving task:", error);
+    res.status(500).json({ success: false, error: "Failed to unarchive task" });
+  }
+};
+
+// Delete a task (soft-delete by setting isActive to false, matching frontend expectation) - Done ✅
 export const deleteTask = async (req, res) => {
   try {
     const { taskId } = req.params; // Fix: Use taskId from params
@@ -643,31 +640,6 @@ export const reorderTasks = async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to reorder tasks" });
   }
 };
-
-// Archive a task - Done ✅
-// Archive a task
-// export const archiveTask = async (req, res) => {
-//   try {
-//     const { taskId } = req.params;
-//     const task = await taskModel.findById(taskId);
-
-//     if (!task)
-//       return res.status(404).json({ success: false, error: "Task not found" });
-
-//     task.isArchived = true; // Use a specific flag
-//     task.isActive = false; // Remove from main view
-//     task.archivedAt = new Date();
-
-//     await task.save();
-//     res.json({ success: true, message: "Task archived" });
-//   } catch (error) {
-//     console.error("Error archiving task:", error);
-//     res.status(500).json({
-//       success: false,
-//       error: "Failed to archive task",
-//     });
-//   }
-// };
 
 // GET /api/tasks/search?name=Bug - Done ✅
 export const searchTasks = async (req, res) => {

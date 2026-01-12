@@ -7,6 +7,7 @@ import {
   getTaskById,
   getTasksByProject,
   reorderTasks,
+  unarchiveTask,
   updateTask,
 } from "../controllers/taskController.js";
 import { devBypassAuth, getUserInfo, requireAuth } from "../middleware/auth.js";
@@ -43,6 +44,17 @@ taskRouter.patch(
   requireProjectAccess,
   archiveTask
 );
+
+// ...existing code...
+
+router.patch(
+  "/:projectId/tasks/:taskId/unarchive",
+  requireAuth,
+  requireProjectAccess,
+  unarchiveTask
+);
+
+// ...existing code...
 
 taskRouter.patch("/:projectId/reorder", requireProjectAccess, reorderTasks);
 

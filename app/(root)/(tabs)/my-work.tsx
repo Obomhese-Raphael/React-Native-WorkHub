@@ -45,42 +45,49 @@ export default function MyWorkScreen() {
   };
 
   const performAction = async (taskId: string, type: "delete" | "archive") => {
-  try {
-    const token = await getToken();
-    const taskToProcess = tasks.find((t) => t._id === taskId);
-    
-    console.log('Task found:', taskToProcess);           // ← add this
-    console.log('Project ID being used:', taskToProcess?.projectId?._id); // ← add this
+    try {
+      const token = await getToken();
+      const taskToProcess = tasks.find((t) => t._id === taskId);
 
-    const pId = taskToProcess?.projectId?._id;
-    if (!pId) {
-      Alert.alert("Error", "Task has no project association – cannot archive/delete");
-      return;
+      console.log("Task found:", taskToProcess); // ← add this
+      console.log("Project ID being used:", taskToProcess?.projectId?._id); // ← add this
+
+      const pId = taskToProcess?.projectId?._id;
+      if (!pId) {
+        Alert.alert(
+          "Error",
+          "Task has no project association – cannot archive/delete"
+        );
+        return;
+      }
+
+      const endpoint =
+        type === "delete"
+          ? `/tasks/${pId}/tasks/${taskId}`
+          : `/tasks/${pId}/tasks/${taskId}/archive`;
+
+      const method = type === "delete" ? "DELETE" : "PATCH";
+
+      console.log(`Sending ${method} to: ${API_BASE_URL}${endpoint}`); // ← crucial debug
+
+      const res = await api(endpoint, token, { method });
+
+      if (res.success) {
+        // ← note: your backend returns { success: true, message }
+        setTasks((prev) => prev.filter((t) => t._id !== taskId));
+        Alert.alert(
+          "Success",
+          type === "delete" ? "Task deleted" : "Task archived"
+        );
+      } else {
+        throw new Error(res.error || "Action failed");
+      }
+    } catch (err) {
+      console.error(`Error during ${type}:`, err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      Alert.alert("Error", `Failed to ${type} task: ${errorMessage}`);
     }
-
-    const endpoint =
-      type === "delete"
-        ? `/tasks/${pId}/tasks/${taskId}`
-        : `/tasks/${pId}/tasks/${taskId}/archive`;
-
-    const method = type === "delete" ? "DELETE" : "PATCH";
-
-    console.log(`Sending ${method} to: ${API_BASE_URL}${endpoint}`); // ← crucial debug
-
-    const res = await api(endpoint, token, { method });
-
-    if (res.success) {  // ← note: your backend returns { success: true, message }
-      setTasks((prev) => prev.filter((t) => t._id !== taskId));
-      Alert.alert("Success", type === "delete" ? "Task deleted" : "Task archived");
-    } else {
-      throw new Error(res.error || "Action failed");
-    }
-  } catch (err) {
-    console.error(`Error during ${type}:`, err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Alert.alert("Error", `Failed to ${type} task: ${errorMessage}`);
-  }
-};
+  };
 
   const handleArchive = (taskId: string) => {
     Alert.alert("Archive Task", "Move this task to your archives?", [
@@ -137,9 +144,10 @@ export default function MyWorkScreen() {
           ) : (
             <View className="space-y-4 mb-10">
               {tasks.map((task) => (
-                <View
+                <TouchableOpacity
                   key={task._id}
                   className="bg-slate-800/50 border mb-5 border-slate-700 rounded-2xl p-5"
+                  activeOpacity={0.7}
                 >
                   {/* Top Row: Title & Icons */}
                   <View className="flex-row justify-between items-start">
@@ -187,7 +195,7 @@ export default function MyWorkScreen() {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
