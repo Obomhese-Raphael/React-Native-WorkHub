@@ -184,49 +184,64 @@ const addMember = async (req, res) => {
   }
 };
 
-// Invite Team Member via Clerk 
+// Invite Team Member via Clerk
 const inviteTeamMember = async (req, res) => {
   try {
     const teamId = req.params.id;
     const { email, role = "member" } = req.body;
-    const adminId = req.userId; // Set by your auth middleware
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // 1. Validation: Is the requester an admin of this team?
-    const team = await teamModel.findById(teamId);
-    if (!team)
-      return res.status(404).json({ success: false, error: "Team not found" });
+    // 1. Check if the user already exists in Clerk
+    const users = await clerkClient.users.getUserList({
+      emailAddress: [normalizedEmail],
+    });
 
-    const requester = team.members.find((m) => m.userId === adminId);
-    if (!requester || requester.role !== "admin") {
-      return res
-        .status(403)
-        .json({ success: false, error: "Only admins can invite members" });
+    const existingUser = users.data[0];
+
+    if (existingUser) {
+      // CASE A: User exists! Use your "addMember" logic automatically.
+      const team = await teamModel.findById(teamId);
+
+      // Prevent duplicates
+      if (team.members.some((m) => m.userId === existingUser.id)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User is already in this team" });
+      }
+
+      team.members.push({
+        userId: existingUser.id,
+        name:
+          `${existingUser.firstName || ""} ${existingUser.lastName || ""}`.trim() ||
+          "New Member",
+        email: normalizedEmail,
+        role: role,
+        joinedAt: new Date(),
+      });
+
+      await team.save();
+      return res.json({
+        success: true,
+        message: "User found in system and added to team directly.",
+        data: { type: "direct_add", userId: existingUser.id },
+      });
     }
 
-    // 2. Send Invitation via Clerk
-    // We store the teamId in metadata so it follows the user during signup
+    // CASE B: User doesn't exist. Send the Clerk Invite.
     const invitation = await clerkClient.invitations.createInvitation({
-      emailAddress: email,
-      redirectUrl: process.env.APP_URL + "/sign-up", // Where they go after clicking link
-      publicMetadata: {
-        joinedViaInvite: true,
-        pendingTeamId: teamId,
-        pendingRole: role,
-      },
-      ignoreExisting: false, // Set to true if you want to allow re-inviting existing users
+      emailAddress: normalizedEmail,
+      publicMetadata: { pendingTeamId: teamId, pendingRole: role },
+      ignoreExisting: true,
     });
 
     res.json({
       success: true,
-      message: `Invitation sent to ${email}`,
-      data: invitation,
+      message: "Invitation sent to new user.",
+      data: { type: "invite_sent", invitationId: invitation.id },
     });
   } catch (error) {
-    console.error("Clerk Invite Error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to send invite",
-    });
+    console.error("Invite/Add Error:", error);
+    res.status(500).json({ success: false, error: "Process failed" });
   }
 };
 
