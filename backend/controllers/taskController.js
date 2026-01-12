@@ -139,7 +139,6 @@ export const createTask = async (req, res) => {
 
 // Get all tasks
 export const getMyTasks = async (req, res) => {
-  console.log("Getting all tasks...");
   try {
     const userId = req.userId;
 
@@ -150,8 +149,6 @@ export const getMyTasks = async (req, res) => {
       })
       .populate("projectId", "name")
       .sort({ createdAt: -1 });
-
-    console.log("All Tasks: ", tasks);
 
     res.status(200).json({
       success: true,
@@ -500,28 +497,78 @@ export const updateTask = async (req, res) => {
 // };
 
 // backend/controllers/taskController.js
-export const deleteTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
+// export const deleteTask = async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
 
-    // Use findOneAndUpdate to mark as inactive (Soft Delete)
-    const task = await taskModel.findOneAndUpdate(
-      { _id: taskId, projectId: req.project._id },
-      { 
-        isActive: false, 
-        deletedAt: new Date(),
-        deletedBy: req.userId 
-      },
-      { new: true }
-    );
+//     // Use findOneAndUpdate to mark as inactive (Soft Delete)
+//     const task = await taskModel.findOneAndUpdate(
+//       { _id: taskId, projectId: req.project._id },
+//       { 
+//         isActive: false, 
+//         deletedAt: new Date(),
+//         deletedBy: req.userId 
+//       },
+//       { new: true }
+//     );
+
+//     if (!task) {
+//       return res.status(404).json({ success: false, error: "Task not found" });
+//     }
+
+//     res.json({ success: true, message: "Task moved to trash" });
+//   } catch (error) {
+//     res.status(500).json({ success: false, error: "Server error" });
+//   }
+// };
+
+// Archive a task (soft-delete by setting isActive to false)
+export const archiveTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // Find the task and ensure the user is the creator or assignee
+    const task = await taskModel.findOne({
+      _id: id,
+      isActive: true,
+      $or: [{ createdBy: userId }, { "assignees.userId": userId }],
+    });
 
     if (!task) {
-      return res.status(404).json({ success: false, error: "Task not found" });
+      return res.status(404).json({ success: false, error: "Task not found or access denied" });
     }
 
-    res.json({ success: true, message: "Task moved to trash" });
+    // Archive the task
+    await taskModel.updateOne({ _id: id }, { isActive: false });
+
+    res.status(200).json({ success: true, message: "Task archived successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, error: "Server error" });
+    console.error("Error archiving task:", error);
+    res.status(500).json({ success: false, error: "Failed to archive task" });
+  }
+};
+
+// Delete a task (hard-delete, optional - use with caution)
+export const deleteTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // Find and delete the task (ensure user has access)
+    const task = await taskModel.findOneAndDelete({
+      _id: id,
+      $or: [{ createdBy: userId }, { "assignees.userId": userId }],
+    });
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: "Task not found or access denied" });
+    }
+
+    res.status(200).json({ success: true, message: "Task deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    res.status(500).json({ success: false, error: "Failed to delete task" });
   }
 };
 
@@ -571,28 +618,28 @@ export const reorderTasks = async (req, res) => {
 
 // Archive a task - Done ✅
 // Archive a task
-export const archiveTask = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const task = await taskModel.findById(taskId);
+// export const archiveTask = async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
+//     const task = await taskModel.findById(taskId);
 
-    if (!task)
-      return res.status(404).json({ success: false, error: "Task not found" });
+//     if (!task)
+//       return res.status(404).json({ success: false, error: "Task not found" });
 
-    task.isArchived = true; // Use a specific flag
-    task.isActive = false; // Remove from main view
-    task.archivedAt = new Date();
+//     task.isArchived = true; // Use a specific flag
+//     task.isActive = false; // Remove from main view
+//     task.archivedAt = new Date();
 
-    await task.save();
-    res.json({ success: true, message: "Task archived" });
-  } catch (error) {
-    console.error("Error archiving task:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to archive task",
-    });
-  }
-};
+//     await task.save();
+//     res.json({ success: true, message: "Task archived" });
+//   } catch (error) {
+//     console.error("Error archiving task:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to archive task",
+//     });
+//   }
+// };
 
 // GET /api/tasks/search?name=Bug - Done ✅
 export const searchTasks = async (req, res) => {
@@ -678,3 +725,4 @@ export const searchTasks = async (req, res) => {
 };
 
 export default { createTask, getTasksByProject, updateTask, deleteTask };
+

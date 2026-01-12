@@ -30,6 +30,7 @@ export default function MyWorkScreen() {
   const { getToken } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const API_BASE_URL = "https://react-native-work-hub-backend.vercel.app/api";
 
   const confirmDelete = (taskId: string) => {
     Alert.alert("Delete Task", "Move this task to trash?", [
@@ -43,42 +44,42 @@ export default function MyWorkScreen() {
   };
 
   const performAction = async (taskId: string, type: "delete" | "archive") => {
-    try {
-      const token = await getToken();
+  try {
+    const token = await getToken();
+    const taskToProcess = tasks.find((t) => t._id === taskId);
+    
+    console.log('Task found:', taskToProcess);           // ← add this
+    console.log('Project ID being used:', taskToProcess?.projectId?._id); // ← add this
 
-      // 1. Find the specific task to get its projectId
-      const taskToProcess = tasks.find((t) => t._id === taskId);
-      const pId = taskToProcess?.projectId?._id;
-
-      if (!pId) {
-        Alert.alert("Error", "Could not find associated project ID");
-        return;
-      }
-
-      // 2. Use the correct URL structure required by your taskRouter
-      const endpoint =
-        type === "delete"
-          ? `/${pId}/tasks/${taskId}` // Matches .delete() route
-          : `/${pId}/tasks/${taskId}/archive`; // Matches .patch() route
-
-      // 3. Ensure the method matches your router (DELETE for delete, PATCH for archive)
-      const method = type === "delete" ? "DELETE" : "PATCH";
-
-      const res = await api(endpoint, token, { method });
-
-      if (res.data?.success) {
-        setTasks((prev) => prev.filter((t) => t._id !== taskId));
-      } else {
-        throw new Error(res.data?.error || "Action failed");
-      }
-    } catch (err) {
-      console.error(`Error during ${type}:`, err);
-      Alert.alert(
-        "Error",
-        `Failed to ${type} task. Check console for details.`
-      );
+    const pId = taskToProcess?.projectId?._id;
+    if (!pId) {
+      Alert.alert("Error", "Task has no project association – cannot archive/delete");
+      return;
     }
-  };
+
+    const endpoint =
+      type === "delete"
+        ? `/${pId}/tasks/${taskId}`
+        : `/${pId}/tasks/${taskId}/archive`;
+
+    const method = type === "delete" ? "DELETE" : "PATCH";
+
+    console.log(`Sending ${method} to: ${API_BASE_URL}${endpoint}`); // ← crucial debug
+
+    const res = await api(endpoint, token, { method });
+
+    if (res.success) {  // ← note: your backend returns { success: true, message }
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      Alert.alert("Success", type === "delete" ? "Task deleted" : "Task archived");
+    } else {
+      throw new Error(res.error || "Action failed");
+    }
+  } catch (err) {
+    console.error(`Error during ${type}:`, err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Alert.alert("Error", `Failed to ${type} task: ${errorMessage}`);
+  }
+};
 
   const handleArchive = (taskId: string) => {
     Alert.alert("Archive Task", "Move this task to your archives?", [
