@@ -47,7 +47,7 @@ taskRouter.patch(
 
 // ...existing code...
 
-router.patch(
+taskRouter.patch(
   "/:projectId/tasks/:taskId/unarchive",
   requireAuth,
   requireProjectAccess,
