@@ -504,10 +504,10 @@ export const updateTask = async (req, res) => {
 //     // Use findOneAndUpdate to mark as inactive (Soft Delete)
 //     const task = await taskModel.findOneAndUpdate(
 //       { _id: taskId, projectId: req.project._id },
-//       { 
-//         isActive: false, 
+//       {
+//         isActive: false,
 //         deletedAt: new Date(),
-//         deletedBy: req.userId 
+//         deletedBy: req.userId
 //       },
 //       { new: true }
 //     );
@@ -528,21 +528,29 @@ export const archiveTask = async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
 
+    console.log("Archive attempt - userId from middleware:", req.userId);
+    console.log("Task ID:", id);
+    console.log("Project ID from params:", req.params.projectId);
+
     // Find the task and ensure the user is the creator or assignee
     const task = await taskModel.findOne({
-      _id: id,
+      _id: new mongoose.Types.ObjectId(id),
       isActive: true,
       $or: [{ createdBy: userId }, { "assignees.userId": userId }],
     });
 
     if (!task) {
-      return res.status(404).json({ success: false, error: "Task not found or access denied" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Task not found or access denied" });
     }
 
     // Archive the task
     await taskModel.updateOne({ _id: id }, { isActive: false });
 
-    res.status(200).json({ success: true, message: "Task archived successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Task archived successfully" });
   } catch (error) {
     console.error("Error archiving task:", error);
     res.status(500).json({ success: false, error: "Failed to archive task" });
@@ -562,10 +570,14 @@ export const deleteTask = async (req, res) => {
     });
 
     if (!task) {
-      return res.status(404).json({ success: false, error: "Task not found or access denied" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Task not found or access denied" });
     }
 
-    res.status(200).json({ success: true, message: "Task deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     console.error("Error deleting task:", error);
     res.status(500).json({ success: false, error: "Failed to delete task" });
@@ -725,4 +737,3 @@ export const searchTasks = async (req, res) => {
 };
 
 export default { createTask, getTasksByProject, updateTask, deleteTask };
-

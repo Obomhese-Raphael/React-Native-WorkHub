@@ -24,6 +24,7 @@ type Task = {
     _id: string;
     name: string;
   };
+  order: number;
 };
 
 export default function MyWorkScreen() {
@@ -59,8 +60,8 @@ export default function MyWorkScreen() {
 
     const endpoint =
       type === "delete"
-        ? `/${pId}/tasks/${taskId}`
-        : `/${pId}/tasks/${taskId}/archive`;
+        ? `/tasks/${pId}/tasks/${taskId}`
+        : `/tasks/${pId}/tasks/${taskId}/archive`;
 
     const method = type === "delete" ? "DELETE" : "PATCH";
 

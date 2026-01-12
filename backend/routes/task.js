@@ -40,7 +40,7 @@ taskRouter
 
 taskRouter.patch(
   "/:projectId/tasks/:taskId/archive",
-  requireProjectAccess,
+  
   archiveTask
 );
 
