@@ -5,12 +5,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,6 +24,7 @@ type TaskDetail = {
   projectId: {
     _id: string;
     name: string;
+    title?: string;
   };
   assignees: Array<{
     userId: string;
@@ -37,7 +38,6 @@ export default function TaskDetailScreen() {
     taskId: string;
     projectId: string;
   }>();
-  console.log("taskId:", taskId, "projectId:", projectId);
   const { getToken } = useAuth();
   const router = useRouter();
 
@@ -54,9 +54,8 @@ export default function TaskDetailScreen() {
       }
       try {
         const token = await getToken();
-
         const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
-        setTask(res); // adjust based on your API response shape
+        setTask(res.data); // adjust based on your API response shape
       } catch (err) {
         console.error("Failed to load task", err);
         Alert.alert("Error", "Could not load task details");
@@ -167,7 +166,7 @@ export default function TaskDetailScreen() {
           {/* Project */}
           <Text className="text-slate-400 mb-2">Project</Text>
           <Text className="text-blue-400 text-lg mb-6">
-            {task.projectId.name}
+            {task.projectId.name || task.projectId.title}
           </Text>
 
           {/* Description */}

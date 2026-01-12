@@ -131,16 +131,6 @@ export default function ProjectTaskBoard() {
         className="bg-slate-800/70 backdrop-blur border border-slate-700/60 rounded-2xl p-5 mb-5 shadow-lg"
         onPress={() => {
           const rawProjectId = item.projectId;
-
-          console.log("Navigating to task:", {
-            taskId: item._id,
-            projectIdRaw: rawProjectId,
-            projectIdExtracted:
-              typeof rawProjectId === "string"
-                ? rawProjectId
-                : rawProjectId?._id,
-          });
-
           router.push({
             pathname: "/task/[taskId]",
             params: {

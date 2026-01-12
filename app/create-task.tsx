@@ -22,6 +22,7 @@ export default function CreateTaskScreen() {
   const [projects, setProjects] = useState<{ _id: string; name: string }[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -60,7 +61,10 @@ export default function CreateTaskScreen() {
       const token = await getToken();
       await api(`/tasks/${selectedProjectId}/tasks`, token, {
         method: "POST",
-        body: JSON.stringify({ title: title.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+        }),
       });
       Alert.alert("Task Deployed", "Action item added to project queue.", [
         { text: "Acknowledge", onPress: () => router.back() },
@@ -160,6 +164,22 @@ export default function CreateTaskScreen() {
                   value={title}
                   onChangeText={setTitle}
                   autoFocus={true}
+                />
+              </View>
+
+              {/* Task Description (Optional) */}
+              <View>
+                <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
+                  Description (Optional)
+                </Text>
+                <TextInput
+                  className="bg-slate-800/40 rounded-2xl px-6 py-5 text-white text-base border border-slate-700/50 min-h-[120px]"
+                  placeholder="Add context, requirements, or notes..."
+                  placeholderTextColor="#475569"
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  textAlignVertical="top"
                 />
               </View>
 
