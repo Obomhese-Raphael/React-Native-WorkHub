@@ -525,24 +525,21 @@ export const updateTask = async (req, res) => {
 // Archive a task (soft-delete by setting isActive to false)
 export const archiveTask = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { taskId } = req.params; // Fix: Use taskId from params
     const userId = req.userId;
 
     console.log("Archive attempt - userId from middleware:", req.userId);
-    console.log("Task ID:", id);
+    console.log("Task ID:", taskId);
     console.log("Project ID from params:", req.params.projectId);
 
     // Find the task and ensure the user is the creator or assignee
     const task = await taskModel.findOne({
-      _id: new mongoose.Types.ObjectId(id),
+      _id: taskId, // Fix: Use taskId
       isActive: true,
       $or: [{ createdBy: userId }, { "assignees.userId": userId }],
     });
-    // const task = await taskModel.findOne({
-    //   _id: id,
-    //   isActive: true,
-    //   $or: [{ createdBy: userId }, { "assignees.userId": userId }],
-    // });
+
+    console.log("Task found for archiving:", task);
 
     if (!task) {
       return res
@@ -551,7 +548,7 @@ export const archiveTask = async (req, res) => {
     }
 
     // Archive the task
-    await taskModel.updateOne({ _id: id }, { isActive: false });
+    await taskModel.updateOne({ _id: taskId }, { isActive: false }); // Fix: Use taskId
 
     res
       .status(200)
@@ -562,17 +559,24 @@ export const archiveTask = async (req, res) => {
   }
 };
 
-// Delete a task (hard-delete, optional - use with caution)
+// Delete a task (soft-delete by setting isActive to false, matching frontend expectation)
 export const deleteTask = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { taskId } = req.params; // Fix: Use taskId from params
     const userId = req.userId;
 
-    // Find and delete the task (ensure user has access)
-    const task = await taskModel.findOneAndDelete({
-      _id: id,
+    console.log("Delete attempt - userId from middleware:", req.userId);
+    console.log("Task ID:", taskId);
+    console.log("Project ID from params:", req.params.projectId);
+
+    // Find the task and ensure the user is the creator or assignee (soft delete)
+    const task = await taskModel.findOne({
+      _id: taskId, // Fix: Use taskId
+      isActive: true,
       $or: [{ createdBy: userId }, { "assignees.userId": userId }],
     });
+
+    console.log("Task found for deletion:", task);
 
     if (!task) {
       return res
@@ -580,9 +584,16 @@ export const deleteTask = async (req, res) => {
         .json({ success: false, error: "Task not found or access denied" });
     }
 
+    // Soft delete: mark as inactive
+    await taskModel.updateOne({ _id: taskId }, { // Fix: Use taskId
+      isActive: false,
+      deletedAt: new Date(),
+      deletedBy: userId
+    });
+
     res
       .status(200)
-      .json({ success: true, message: "Task deleted successfully" });
+      .json({ success: true, message: "Task moved to trash successfully" });
   } catch (error) {
     console.error("Error deleting task:", error);
     res.status(500).json({ success: false, error: "Failed to delete task" });
