@@ -81,12 +81,12 @@ export default function HomeScreen() {
     } catch (err) {
       console.error("Failed to get token:", err);
     }
-  };  
+  };         
 
   // --- Logic: Fetch Data ---  
   const fetchHomeData = async () => {           
     try {
-      setLoading(true);
+      setLoading(true);  
       const token = await getToken();
       console.log("Fetched Token:", token);  
       if (!token) throw new Error("Not authenticated");

@@ -29,8 +29,13 @@ app.use(
     credentials: true,
   })
 );
-app.use("/api", express.json());
+
+// === Middleware ===
+// 1. WEBHOOK FIRST 🚨
 app.use("/api/webhooks", webhookRouter);
+// 2. JSON Parsing & Clerk Auth
+app.use("/api", express.json());
+// 3. Clerk Middleware
 app.use(clerkMiddleware());
 
 // === Global MongoDB Connection with Reuse (Vercel-safe) ===
