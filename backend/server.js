@@ -11,6 +11,7 @@ import { getUserInfo, requireAuth } from "./middleware/auth.js";
 import projectRouter from "./routes/project.js";
 import taskRouter from "./routes/task.js";
 import teamsRouter from "./routes/team.js";
+import webhookRouter from "./routes/webhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,7 +29,8 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use("/api", express.json());
+app.use("/api/webhooks", webhookRouter);
 app.use(clerkMiddleware());
 
 // === Global MongoDB Connection with Reuse (Vercel-safe) ===
@@ -50,7 +52,7 @@ async function connectDB() {
     cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 30000, // Longer wait for cold starts
       socketTimeoutMS: 45000,
-      maxPoolSize: 10,                 // Good for serverless
+      maxPoolSize: 10, // Good for serverless
     });
 
     console.log("🟢 Connected to MongoDB successfully");
@@ -62,7 +64,7 @@ async function connectDB() {
 }
 
 // Start connection early so it's ready for requests
-connectDB().catch(err => console.error("Initial DB connect failed:", err));
+connectDB().catch((err) => console.error("Initial DB connect failed:", err));
 
 // Routes (must come after middleware)
 app.use("/api/projects", projectRouter);

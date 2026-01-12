@@ -81,10 +81,10 @@ export default function HomeScreen() {
     } catch (err) {
       console.error("Failed to get token:", err);
     }
-  };
+  };  
 
-  // --- Logic: Fetch Data ---
-  const fetchHomeData = async () => {   
+  // --- Logic: Fetch Data ---  
+  const fetchHomeData = async () => {         
     try {
       setLoading(true);
       const token = await getToken();
@@ -100,7 +100,7 @@ export default function HomeScreen() {
       const allProjects: Project[] = [];
       let totalTodo = 0;
       let totalInProgress = 0;
-      let totalDone = 0;
+      let totalDone = 0;  
       let totalOverdue = 0;
 
       for (const team of userTeams) {
