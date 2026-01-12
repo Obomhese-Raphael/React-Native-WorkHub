@@ -282,7 +282,7 @@ export const getTaskById = async (req, res) => {
         projectId: req.project._id,
         isActive: true,
       })
-      .populate("projectId", "name title", "title") // Support both name and title fields
+      .populate("projectId", "name title") // Support both name and title fields
       .lean();
 
     if (!task) {
