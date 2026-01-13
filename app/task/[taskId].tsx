@@ -6,7 +6,7 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -52,36 +52,6 @@ export default function TaskDetailScreen() {
   const [updating, setUpdating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // useEffect(() => {
-  //   const fetchTask = async () => {
-  //     if (!taskId || !projectId) {
-  //       Alert.alert("Error", "Missing task or project ID");
-  //       setLoading(false);
-  //       return;
-  //     }
-  //     try {
-  //       const token = await getToken();
-  //       const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
-  //       setTask(res.data); // adjust based on your API response shape
-  //     } catch (err) {
-  //       console.error("Failed to load task", err);
-  //       Alert.alert("Error", "Could not load task details");
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   fetchTask();
-  // }, [taskId, getToken]);
-
-  // // This ensures the data refreshes every time you navigate back to this screen
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     fetchTask(); // Make sure your fetchTask function is defined outside of the original useEffect so it can be called here
-  //   }, [taskId])
-  // );
-
-  // 1. Define fetchTask outside with useCallback
   const fetchTask = useCallback(async () => {
     if (!taskId || !projectId) {
       setLoading(false);
@@ -99,12 +69,7 @@ export default function TaskDetailScreen() {
     }
   }, [taskId, projectId, getToken]);
 
-  // 2. Trigger on initial mount
-  useEffect(() => {
-    fetchTask();
-  }, [fetchTask]);
-
-  // 3. Trigger every time the user navigates back to this screen
+  // Trigger every time the user navigates back to this screen
   useFocusEffect(
     useCallback(() => {
       fetchTask();

@@ -24,26 +24,26 @@ const projectSchema = new mongoose.Schema({
     required: true,
   },
   projectMembers: [
-  {
-    userId: {
-      type: String, // Clerk userId
-      required: true,
+    {
+      userId: {
+        type: String, // Clerk userId
+        required: true,
+      },
+      role: {
+        type: String,
+        enum: ["owner", "editor", "viewer"],
+        default: "viewer",
+      },
+      addedBy: {
+        type: String, // Clerk userId who added them
+        required: true,
+      },
+      addedAt: {
+        type: Date,
+        default: Date.now,
+      },
     },
-    role: {
-      type: String,
-      enum: ["owner", "editor", "viewer"],
-      default: "viewer",
-    },
-    addedBy: {
-      type: String, // Clerk userId who added them
-      required: true,
-    },
-    addedAt: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-],
+  ],
   status: {
     type: String,
     enum: ["active", "archived", "completed"],
@@ -84,6 +84,17 @@ projectSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Optional helper method (like teamModel) – very useful later!
+projectSchema.methods.isUserMember = function (userId) {
+  return this.projectMembers.some((m) => m.userId === userId);
+};
+
+projectSchema.methods.isUserEditorOrHigher = function (userId) {
+  return this.projectMembers.some(
+    (m) => m.userId === userId && ["owner", "editor"].includes(m.role)
+  );
+};
 
 const projectModel =
   mongoose.models.project || mongoose.model("project", projectSchema);

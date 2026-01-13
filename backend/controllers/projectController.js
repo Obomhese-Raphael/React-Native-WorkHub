@@ -399,91 +399,91 @@ export const getProjectById = async (req, res) => {
     });
   }
 };
-// Add user to project - Optional but Done ✅
+// controllers/projectController.js
 export const addMemberToProject = async (req, res) => {
   try {
-    const { teamId, projectId } = req.params;
+    const { projectId } = req.params; // teamId not needed in params anymore (we get it from project)
     const { userId: memberUserId, role = "viewer" } = req.body;
     const currentUserId = req.userId;
 
     if (!currentUserId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Missing authentication",
-      });
+      return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
     if (!memberUserId) {
-      return res.status(400).json({
-        success: false,
-        error: "Member userId is required",
-      });
+      return res
+        .status(400)
+        .json({ success: false, error: "Member userId is required" });
+    }
+
+    // Validate role
+    if (!["owner", "editor", "viewer"].includes(role)) {
+      return res.status(400).json({ success: false, error: "Invalid role" });
     }
 
     // Find project
-    const project = await projectModel.findOne({
-      _id: projectId,
-      teamId,
-      isActive: true,
-    });
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        error: "Project not found or does not belong to this team",
-      });
+    const project = await projectModel.findById(projectId).populate("teamId");
+    if (!project || !project.isActive) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Project not found or inactive" });
     }
 
-    // Check current user is team member
-    const team = await teamModel.findById(teamId);
-    if (!team || !team.isActive || !team.isUserMember(currentUserId)) {
+    // Check if current user is in the team (via team middleware or here)
+    const team = project.teamId; // populated
+    if (!team || !team.isUserMember(currentUserId)) {
       return res.status(403).json({
         success: false,
-        error: "Access denied: You are not a member of this team",
+        error: "You must be a member of the parent team to manage this project",
       });
     }
 
-    // Check member to add is also a team member
+    // Only allow editors/owners to add members (optional but recommended)
+    if (!project.isUserEditorOrHigher(currentUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Only project owners or editors can add members",
+      });
+    }
+
+    // Check if target user is in the team
     if (!team.isUserMember(memberUserId)) {
       return res.status(400).json({
         success: false,
-        error: "User must be a team member before being added to a project",
+        error: "User must be a member of the parent team first",
       });
     }
 
     // Prevent duplicates
-    const alreadyMember = project.projectMembers.some(
-      (m) => m.userId === memberUserId
-    );
-
-    if (alreadyMember) {
+    if (project.isUserMember(memberUserId)) {
       return res.status(400).json({
         success: false,
         error: "User is already a member of this project",
       });
     }
 
-    // Add member (creator is owner by default)
+    // Add the member
     project.projectMembers.push({
       userId: memberUserId,
       role,
       addedBy: currentUserId,
     });
 
-    project.updatedAt = Date.now();
     await project.save();
 
     res.status(201).json({
       success: true,
-      data: project.projectMembers,
       message: "Member added to project successfully",
+      data: {
+        projectId: project._id,
+        addedUserId: memberUserId,
+        role,
+        projectMembersCount: project.projectMembers.length,
+      },
     });
   } catch (error) {
     console.error("Error adding member to project:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to add member to project",
-    });
+    res.status(500).json({ success: false, error: "Failed to add member" });
   }
 };
 // Remove member from project - Optional not tested
