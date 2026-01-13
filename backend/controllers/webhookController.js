@@ -35,31 +35,43 @@ export const handleClerkWebhook = async (req, res) => {
   const { id } = evt.data;
   const eventType = evt.type;
 
+  // Inside handleClerkWebhook function
   if (eventType === "user.created") {
-    const { email_addresses, public_metadata, first_name, last_name } =
+    const { email_addresses, public_metadata, first_name, last_name, id } =
       evt.data;
     const email = email_addresses[0]?.email_address;
     const { pendingTeamId, pendingRole } = public_metadata;
 
-    if (pendingTeamId) {
+    if (pendingTeamId && email) {
       try {
-        await teamModel.findByIdAndUpdate(pendingTeamId, {
-          $push: {
-            members: {
-              userId: id, // This is the new Clerk User ID
-              name:
-                `${first_name || ""} ${last_name || ""}`.trim() || "New Member",
-              email: email,
-              role: pendingRole || "member",
-              joinedAt: new Date(),
+        // Use $addToSet instead of $push → makes it idempotent (no duplicates)
+        const updatedTeam = await teamModel.findByIdAndUpdate(
+          pendingTeamId,
+          {
+            $addToSet: {
+              members: {
+                userId: id,
+                name:
+                  `${first_name || ""} ${last_name || ""}`.trim() ||
+                  "New Member",
+                email: email,
+                role: pendingRole || "member",
+                joinedAt: new Date(),
+              },
             },
           },
-        });
-        console.log(
-          `🟢 User ${id} automatically added to team ${pendingTeamId}`
+          { new: true } // optional: returns updated doc
         );
+
+        if (updatedTeam) {
+          console.log(
+            `🟢 User ${id} added (or already present) to team ${pendingTeamId}`
+          );
+        } else {
+          console.log(`Team ${pendingTeamId} not found during webhook sync`);
+        }
       } catch (err) {
-        console.error("🔴 Failed to sync user to team:", err);
+        console.error("🔴 Failed to sync user to team via webhook:", err);
       }
     }
   }

@@ -149,16 +149,20 @@ const addMember = async (req, res) => {
       });
     }
 
-    // Prevent duplicate emails in the same team
-    if (team.members.some((m) => m.email === email)) {
+    // Prevent duplicate by email OR userId (if provided)
+    const duplicate = team.members.some(
+      (m) => m.email === email || (userId && m.userId === userId)
+    );
+
+    if (duplicate) {
       return res.status(400).json({
         success: false,
-        error: "This email is already a member of the team",
+        error: "This user (email or ID) is already a member of the team",
       });
     }
 
     team.members.push({
-      userId,
+      userId: userId || null,
       name,
       email,
       role,
@@ -191,6 +195,19 @@ const inviteTeamMember = async (req, res) => {
     const { email, role = "member" } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
 
+    const team = await teamModel.findById(teamId);
+    if (!team || !team.isActive) {
+      return res.status(404).json({ success: false, error: "Team not found" });
+    }
+
+    // Check if already a member in the database
+    if (team.members.some((m) => m.email === normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: "User is already a member of this team",
+      });
+    }
+
     // 1. Check if the user already exists in Clerk
     const users = await clerkClient.users.getUserList({
       emailAddress: [normalizedEmail],
@@ -199,10 +216,8 @@ const inviteTeamMember = async (req, res) => {
     const existingUser = users.data[0];
 
     if (existingUser) {
-      // CASE A: User exists! Use your "addMember" logic automatically.
-      const team = await teamModel.findById(teamId);
-
-      // Prevent duplicates
+      // CASE A: User exists! Add to team directly.
+      // (Re-verifying by userId just in case email was changed)
       if (team.members.some((m) => m.userId === existingUser.id)) {
         return res
           .status(400)
@@ -222,26 +237,32 @@ const inviteTeamMember = async (req, res) => {
       await team.save();
       return res.json({
         success: true,
-        message: "User found in system and added to team directly.",
+        message: "User found and added to team directly.",
         data: { type: "direct_add", userId: existingUser.id },
       });
+    } else {
+      // CASE B: User doesn't exist. Send Clerk Invite.
+      const invitation = await clerkClient.invitations.createInvitation({
+        emailAddress: normalizedEmail,
+        publicMetadata: {
+          pendingTeamId: teamId,
+          pendingRole: role,
+          source: "workhub_invite",
+        },
+        ignoreExisting: true, // Clerk won't throw error if invite already exists
+      });
+
+      return res.json({
+        success: true,
+        message: "Invitation sent to new user.",
+        data: { type: "invite_sent", invitationId: invitation.id },
+      });
     }
-
-    // CASE B: User doesn't exist. Send the Clerk Invite.
-    const invitation = await clerkClient.invitations.createInvitation({
-      emailAddress: normalizedEmail,
-      publicMetadata: { pendingTeamId: teamId, pendingRole: role },
-      ignoreExisting: true,
-    });
-
-    res.json({
-      success: true,
-      message: "Invitation sent to new user.",
-      data: { type: "invite_sent", invitationId: invitation.id },
-    });
   } catch (error) {
     console.error("Invite/Add Error:", error);
-    res.status(500).json({ success: false, error: "Process failed" });
+    res
+      .status(500)
+      .json({ success: false, error: error.message || "Process failed" });
   }
 };
 
