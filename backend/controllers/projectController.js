@@ -414,13 +414,6 @@ export const addMemberToProject = async (req, res) => {
     const { userId: memberUserId, role = "viewer" } = req.body;
     const currentUserId = req.userId;
 
-    console.log("Current user ID:", currentUserId);
-    console.log("Project members:", project.projectMembers);
-    console.log(
-      "Is editor/owner?",
-      project.isUserEditorOrHigher?.(currentUserId)
-    );
-
     if (!currentUserId) {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
@@ -443,6 +436,13 @@ export const addMemberToProject = async (req, res) => {
         .status(404)
         .json({ success: false, error: "Project not found or inactive" });
     }
+
+    console.log("Current user ID:", currentUserId);
+    console.log("Project members:", project.projectMembers);
+    console.log(
+      "Is editor/owner?",
+      project.isUserEditorOrHigher?.(currentUserId)
+    );
 
     // Check if current user is in the team (via team middleware or here)
     const team = project.teamId; // populated
