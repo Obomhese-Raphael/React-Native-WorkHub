@@ -12,9 +12,9 @@ import {
   updateProject,
   updateProjectMemberRole,
 } from "../controllers/projectController.js";
-import { requireProjectAccess } from "../middleware/auth.js"; // assuming you have this
 
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
+import { requireProjectAccess } from "../middleware/projectAccess.js";
 import projectModel from "../models/Project.js";
 import teamModel from "../models/Team.js";
 
