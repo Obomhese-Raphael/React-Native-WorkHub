@@ -17,6 +17,7 @@ import { getUserInfo, requireAuth } from "../middleware/auth.js";
 import { requireProjectAccess } from "../middleware/projectAccess.js";
 import projectModel from "../models/Project.js";
 import teamModel from "../models/Team.js";
+import taskRouter from "./task.js";
 
 const projectRouter = express.Router();
 
@@ -172,6 +173,9 @@ projectRouter.post(
 
   addMemberToProject
 );
+
+// Nest taskRouter under projects
+projectRouter.use("/:projectId/tasks", taskRouter);
 
 // Remove project member
 projectRouter.delete(

@@ -45,6 +45,25 @@ taskRouter.patch(
   archiveTask
 );
 
+// Add assignee to task
+taskRouter.post(
+  "/:projectId/tasks/:taskId/assignees",
+  requireAuth,
+  getUserInfo,
+  requireProjectAccess,
+  // Optional: add requireTaskAccess middleware if you create one
+  addMemberToTask
+);
+
+// Remove assignee from task
+taskRouter.delete(
+  "/:projectId/tasks/:taskId/assignees/:userId",
+  requireAuth,
+  getUserInfo,
+  requireProjectAccess,
+  removeMemberFromTask
+);
+
 // ...existing code...
 
 taskRouter.patch(
