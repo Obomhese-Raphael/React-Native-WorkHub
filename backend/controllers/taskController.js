@@ -15,36 +15,33 @@ export const createTask = async (req, res) => {
       priority,
       assignees = [],
     } = req.body;
+
     const userId = req.userId;
-    const project = req.project; // Enriched with projectMembers from middleware
+    const project = req.project; // From requireProjectAccess middleware (populated with projectMembers)
 
-    // --- ADD THIS LOGIC ---
-    // If no assignees are provided, default to assigning the creator
+    // Auto-assign creator if no assignees provided
     if (assignees.length === 0) {
-      assignees = [{ userId: userId }];
+      assignees = [{ userId }];
     }
-    // ----------------------
 
-    if (!title || title.trim() === "") {
+    if (!title?.trim()) {
       return res
         .status(400)
         .json({ success: false, error: "Task title is required" });
     }
 
-    // Build fast lookup maps from project members
+    // Build lookup maps for fast validation/resolution
     const memberByUserId = new Map();
     const memberByEmail = new Map();
 
-    project.projectMembers.forEach((member) => {
-      if (member.userId) {
-        memberByUserId.set(member.userId, member);
-      }
-      if (member.email && member.email !== "no-email@workhub.app") {
-        memberByEmail.set(member.email.toLowerCase(), member);
+    project.projectMembers.forEach((m) => {
+      if (m.userId) memberByUserId.set(m.userId, m);
+      if (m.email && m.email !== "no-email@workhub.app") {
+        memberByEmail.set(m.email.toLowerCase(), m);
       }
     });
 
-    // Validate each assignee (supports userId OR email)
+    // Validate assignees (support userId OR email)
     for (const assignee of assignees) {
       let found = false;
 
@@ -60,15 +57,15 @@ export const createTask = async (req, res) => {
       }
 
       if (!found) {
-        const identifier = assignee.userId || assignee.email;
+        const id = assignee.userId || assignee.email;
         return res.status(400).json({
           success: false,
-          error: `User with ${assignee.userId ? "ID" : "email"} '${identifier}' is not a member of this project`,
+          error: `User '${id}' is not a member of this project`,
         });
       }
     }
 
-    // Get next order value
+    // Calculate next order
     const highestOrderTask = await taskModel
       .findOne({ projectId: project._id, isActive: true })
       .sort({ order: -1 })
@@ -76,35 +73,31 @@ export const createTask = async (req, res) => {
 
     const newOrder = highestOrderTask ? highestOrderTask.order + 1 : 0;
 
-    // Resolve and save assignee details
+    // Resolve assignee details (Clerk > stored member data > fallback)
     const resolvedAssignees = await Promise.all(
       assignees.map(async (a) => {
         let member = null;
+        let clerkData = null;
 
+        // Try userId first (most reliable)
         if (a.userId && memberByUserId.has(a.userId)) {
           member = memberByUserId.get(a.userId);
-        } else if (a.email && memberByEmail.has(a.email.toLowerCase())) {
+          clerkData = await getClerkUserDetails(a.userId); // your Clerk helper
+        }
+        // Then email
+        else if (a.email && memberByEmail.has(a.email.toLowerCase())) {
           member = memberByEmail.get(a.email.toLowerCase());
+          if (member.userId) {
+            clerkData = await getClerkUserDetails(member.userId);
+          }
         }
 
-        let name = "Unknown User";
-        let email = "no-email@workhub.app";
-
-        // If we have a real userId → fetch fresh data from Clerk (highest priority)
-        if (member?.userId) {
-          const clerkData = await getClerkUserDetails(member.userId);
-          name = clerkData.name;
-          email = clerkData.email;
-        }
-        // Otherwise, fall back to team member data (for placeholders)
-        else if (member) {
-          name = member.name || "Unknown User";
-          email = member.email || "no-email@workhub.app";
-        }
-        // Final fallback for email-only assignees
-        else if (a.email) {
-          email = a.email.toLowerCase();
-        }
+        const name = clerkData?.name || member?.name || "Unknown User";
+        const email =
+          clerkData?.email ||
+          member?.email ||
+          a.email?.toLowerCase() ||
+          "no-email@workhub.app";
 
         return {
           userId: member?.userId || null,
@@ -115,6 +108,7 @@ export const createTask = async (req, res) => {
         };
       })
     );
+
     const newTask = await taskModel.create({
       projectId: project._id,
       title: title.trim(),
@@ -125,12 +119,17 @@ export const createTask = async (req, res) => {
       assignees: resolvedAssignees,
       order: newOrder,
       createdBy: userId,
+      isActive: true,
     });
+
+    // Optional: Push to project.tasks array
+    project.tasks.push(newTask._id);
+    await project.save();
 
     res.status(201).json({
       success: true,
       data: newTask,
-      message: "Task created successfully",
+      message: "Task created and assigned successfully",
     });
   } catch (error) {
     console.error("Error creating task:", error);
@@ -240,19 +239,25 @@ const enrichTaskWithClerkData = async (task) => {
       for (const userId of uniqueUserIds) {
         const user = await clerkClient.users.getUser(userId);
         clerkUsers[userId] = {
-          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
-          email: user.emailAddresses?.[0]?.emailAddress || 'No email',
+          name:
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            user.username ||
+            "Unknown",
+          email: user.emailAddresses?.[0]?.emailAddress || "No email",
         };
       }
     } catch (error) {
-      console.error('Error fetching Clerk users:', error);
+      console.error("Error fetching Clerk users:", error);
       // Fallback to populated data if Clerk fails
     }
   }
 
   // Enrich assignees with Clerk data or fallback to populated data
   const enrichedAssignees = task.assignees.map((assignee) => {
-    const userId = assignee.userId?._id || assignee.userId?.id || assignee.userId?.toString();
+    const userId =
+      assignee.userId?._id ||
+      assignee.userId?.id ||
+      assignee.userId?.toString();
     if (userId && clerkUsers[userId]) {
       return {
         ...assignee,
@@ -263,8 +268,8 @@ const enrichTaskWithClerkData = async (task) => {
       // Fallback to populated data
       return {
         ...assignee,
-        name: assignee.userId?.name || assignee.name || 'Unknown',
-        email: assignee.userId?.email || assignee.email || 'No email',
+        name: assignee.userId?.name || assignee.name || "Unknown",
+        email: assignee.userId?.email || assignee.email || "No email",
       };
     }
   });
@@ -585,11 +590,15 @@ export const deleteTask = async (req, res) => {
     }
 
     // Soft delete: mark as inactive
-    await taskModel.updateOne({ _id: taskId }, { // Fix: Use taskId
-      isActive: false,
-      deletedAt: new Date(),
-      deletedBy: userId
-    });
+    await taskModel.updateOne(
+      { _id: taskId },
+      {
+        // Fix: Use taskId
+        isActive: false,
+        deletedAt: new Date(),
+        deletedBy: userId,
+      }
+    );
 
     res
       .status(200)
