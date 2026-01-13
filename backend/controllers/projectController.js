@@ -52,6 +52,14 @@ export const createProject = async (req, res) => {
       color: color || "#10B981",
       startDate: startDate || undefined,
       dueDate: dueDate || undefined,
+      projectMembers: [
+        {
+          userId: userId,
+          role: "owner",
+          addedBy: userId,
+          addedAt: Date.now(),
+        },
+      ],
     });
 
     await newProject.save();

@@ -12,6 +12,7 @@ import {
   updateProject,
   updateProjectMemberRole,
 } from "../controllers/projectController.js";
+import { requireProjectAccess } from "../middleware/auth.js"; // assuming you have this
 
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
 import projectModel from "../models/Project.js";
@@ -150,17 +151,25 @@ projectRouter.delete(
 // Add project member
 projectRouter.post(
   "/:projectId/members",
-  requireAuth,
-  getUserInfo,
-  async (req, res, next) => {
+  requireAuth, // JWT + userId
+  getUserInfo, // attaches req.userId, req.userName, etc.
+
+  // Optional: Validate projectId early (good practice)
+  (req, res, next) => {
     const { projectId } = req.params;
     if (!mongoose.isValidObjectId(projectId)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid project ID" });
+      return res.status(400).json({
+        success: false,
+        error: "Invalid project ID format",
+      });
     }
     next();
   },
+
+  // Important: Add project-level access check
+  // (you probably already have requireProjectAccess that checks if req.userId is in projectMembers or team)
+  requireProjectAccess, // ← Strongly recommended!
+
   addMemberToProject
 );
 
