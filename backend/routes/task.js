@@ -1,11 +1,13 @@
 import express from "express";
 import {
+  addMemberToTask,
   archiveTask,
   createTask,
   deleteTask,
   getMyTasks,
   getTaskById,
   getTasksByProject,
+  removeMemberFromTask,
   reorderTasks,
   unarchiveTask,
   updateTask,
