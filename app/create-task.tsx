@@ -167,44 +167,6 @@ export default function CreateTaskScreen() {
             </View>
 
             <View className="space-y-8 pb-10">
-              {/* Parent Project Selection */}
-              {/* <View>
-                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
-                  Parent Project Node
-                </Text>
-                <View className="flex-row flex-wrap">
-                  {projects.length === 0 ? (
-                    <View className="bg-slate-800/20 border border-dashed border-slate-700 p-4 rounded-2xl w-full">
-                      <Text className="text-slate-500 text-xs italic">
-                        No projects detected in ecosystem.
-                      </Text>
-                    </View>
-                  ) : (
-                    projects.map((proj) => (
-                      <TouchableOpacity
-                        key={proj._id}
-                        onPress={() => setSelectedProjectId(proj._id)}
-                        className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
-                          selectedProjectId === proj._id
-                            ? "border-blue-500 bg-blue-500/10"
-                            : "border-slate-700 bg-slate-800/40"
-                        }`}
-                      >
-                        <Text
-                          className={`font-bold text-sm ${
-                            selectedProjectId === proj._id
-                              ? "text-blue-400"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {proj.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </View>
-              </View> */}
-
               {/* Parent Project Selection - Hidden in Edit Mode */}
               {!isEditMode && (
                 <View>

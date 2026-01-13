@@ -57,7 +57,6 @@ projectRouter.get("/", requireAuth, getUserInfo, async (req, res) => {
         isActive: true,
       })
       .select("_id");
-    console.log("User Teams:", userTeams);
 
     if (userTeams.length === 0) {
       return res.json({ success: true, data: [] });
@@ -74,8 +73,6 @@ projectRouter.get("/", requireAuth, getUserInfo, async (req, res) => {
       .select("_id name")
       .sort({ createdAt: -1 }); // Optional: newest first
 
-    console.log(`Found ${projects.length} projects for user ${userId}`);
-    console.log("Projects:", projects);
     res.json({ success: true, data: projects });
   } catch (err) {
     console.error("Error fetching user projects:", err);
