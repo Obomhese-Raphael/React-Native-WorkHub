@@ -11,6 +11,7 @@ import { getUserInfo, requireAuth } from "./middleware/auth.js";
 import projectRouter from "./routes/project.js";
 import taskRouter from "./routes/task.js";
 import teamsRouter from "./routes/team.js";
+import userRouter from "./routes/user.js";
 import webhookRouter from "./routes/webhook.js";
 
 const app = express();
@@ -75,6 +76,7 @@ connectDB().catch((err) => console.error("Initial DB connect failed:", err));
 app.use("/api/projects", projectRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/teams", teamsRouter);
+app.use("/api/users", userRouter);
 app.get("/api/tasks/search", requireAuth, getUserInfo, searchTasks);
 
 app.get("/api/debug-auth", (req, res) => {

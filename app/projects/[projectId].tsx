@@ -54,6 +54,7 @@ export default function ProjectTaskBoard() {
   const router = useRouter();
 
   const [projectName, setProjectName] = useState("Loading Project...");
+  const [projectDescription, setProjectDescription] = useState("");
   const [columns, setColumns] = useState<Column[]>(columnConfig);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +65,7 @@ export default function ProjectTaskBoard() {
 
         const projectRes = await api(`/projects/${projectId}`, token);
         setProjectName(projectRes.data?.name || "Project Board");
+        setProjectDescription(projectRes.data?.description || "");
 
         const tasksRes = await api(`/tasks/${projectId}/tasks`, token);
         const tasks: Task[] = tasksRes.data || [];
@@ -290,6 +292,14 @@ export default function ProjectTaskBoard() {
             ))}
           </View>
         </ScrollView>
+
+        {/* Project Description */}
+        {projectDescription ? (
+          <View className="px-6 pb-4 flex gap-5">
+            <Text className="text-white font-black text-lg">Description: </Text>
+            <Text className="text-slate-400 text-sm">{projectDescription}</Text>
+          </View>
+        ) : null}
 
         {/* Floating Action Button */}
         <TouchableOpacity

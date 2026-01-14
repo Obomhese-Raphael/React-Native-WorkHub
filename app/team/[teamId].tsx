@@ -38,6 +38,7 @@ export default function TeamDetailsScreen() {
   const { getToken } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const getInitial = (name: string) => name.charAt(0).toUpperCase();
 
@@ -63,6 +64,7 @@ export default function TeamDetailsScreen() {
 
         // Fetch team separately for full details
         const teamRes = await api(`/teams/${teamId}`, token);
+        teamRes.data.isAdmin === true ? setIsAdmin(true) : setIsAdmin(false);
         setTeam({ ...teamRes.data, projects: projectsRes });
       } catch (err) {
         console.error("Failed to load team data:", err);
@@ -256,25 +258,26 @@ export default function TeamDetailsScreen() {
               {team.projects.map((project) => (
                 <View
                   key={project._id}
-                  className="bg-slate-800/40 rounded-2xl p-6 border border-slate-700/50 relative"
+                  className="bg-slate-800/40 rounded-2xl border border-slate-700/50 overflow-hidden relative"
                 >
-                  {/* Color accent bar */}
+                  {/* Full-height color sidebar – now more prominent */}
                   <View
-                    className="w-4 h-full absolute left-0 rounded-l-2xl"
+                    className="absolute inset-y-0 left-0 w-5" // wider (20px) and full height
                     style={{ backgroundColor: project.color || "#8b5cf6" }}
                   />
 
-                  <View className="flex-row items-center justify-between">
+                  {/* Card content – add left padding to make space for the bar */}
+                  <View className="flex-row items-center justify-between pl-8 pr-6 py-6">
                     <TouchableOpacity
                       onPress={() => router.push(`/projects/${project._id}`)}
                       className="flex-row items-center flex-1"
                     >
-                      <View className="ml-6 flex-1">
+                      <View className="flex-1">
                         <Text className="text-white text-xl font-bold">
                           {project.name}
                         </Text>
                         <Text className="text-slate-400 mt-1">
-                          {project.activeTaskCount} active task
+                          {project.activeTaskCount || 0} active task
                           {project.activeTaskCount !== 1 ? "s" : ""}
                         </Text>
                       </View>
@@ -285,8 +288,8 @@ export default function TeamDetailsScreen() {
                       />
                     </TouchableOpacity>
 
-                    {/* Delete button – only for admins/owners */}
-                    {project.isUserEditorOrHigher && ( // ← Use enriched field from backend
+                    {/* Delete button */}
+                    {isAdmin && (
                       <TouchableOpacity
                         onPress={() =>
                           handleDeleteProject(project._id, project.name)

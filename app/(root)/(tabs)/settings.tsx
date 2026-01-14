@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -35,6 +36,7 @@ export default function SettingsScreen() {
   // Edit profile states
   const [editName, setEditName] = useState("");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Notification toggles (local for now – can sync to backend/user later)
   const [notifications, setNotifications] = useState({
@@ -78,6 +80,72 @@ export default function SettingsScreen() {
       setIsEditingProfile(false);
     } catch (err) {
       Alert.alert("Error", "Failed to update profile");
+    }
+  };
+
+  const uploadAvatar = async () => {
+    try {
+      setUploading(true);
+
+      // Permission check
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "We need access to your photos.");
+        return;
+      }
+
+      // Pick image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const uri = result.assets[0].uri;
+
+      const formData = new FormData();
+      formData.append("file", {
+        uri,
+        name: "avatar.jpg",
+        type: "image/jpeg",
+      } as any);
+
+      const token = await getToken();
+
+      // Use the user-specific endpoint (more reliable)
+      const userId = user?.id;
+      const response = await fetch(
+        `https://api.clerk.dev/v1/users/${userId}/profile_image`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Clerk upload failed: ${response.status} - ${errText}`);
+      }
+
+      // Force hard refresh of user data
+      await user?.reload();
+      // Extra safety: wait a moment + force re-render
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      router.replace("/settings"); // or current route
+
+      Alert.alert("Success", "Avatar updated! Refresh if not visible.");
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+      Alert.alert("Error", "Failed to upload avatar. Try again.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -188,6 +256,21 @@ export default function SettingsScreen() {
               )}
             </View>
 
+            <TouchableOpacity
+              onPress={uploadAvatar}
+              disabled={uploading}
+              className="mt-4 px-6 py-2 bg-slate-700 rounded-xl flex-row items-center mb-5"
+            >
+              {uploading ? (
+                <ActivityIndicator color="#60a5fa" size="small" />
+              ) : (
+                <Ionicons name="camera" size={20} color="#60a5fa" />
+              )}
+              <Text className="text-white font-medium ml-2">
+                {uploading ? "Uploading..." : "Change Avatar"}
+              </Text>
+            </TouchableOpacity>
+
             {isEditingProfile ? (
               <View className="w-full mb-4">
                 <TextInput
@@ -266,9 +349,9 @@ export default function SettingsScreen() {
               <View className="space-y-4 gap-4">
                 {teams.map((team) => (
                   <TouchableOpacity
-                  key={team._id}
-                  className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5"
-                  onPress={() => router.push(`/team/${team._id}`)}
+                    key={team._id}
+                    className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5"
+                    onPress={() => router.push(`/team/${team._id}`)}
                   >
                     <View className="flex-row items-center justify-between mb-3">
                       <View className="flex-row items-center">
