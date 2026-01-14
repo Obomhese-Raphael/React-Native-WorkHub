@@ -55,13 +55,31 @@ const createTeam = async (req, res) => {
 
 // Get All Teams - Done ✅
 const getAllTeams = async (req, res) => {
-  console.log("🔥 DIRECT HIT: getAllTeams called – no middleware block");
-  console.log(" getAllTeams called for User ID:", req.userId);
+  console.log("🔥 DIRECT HIT: getAllTeams called");
+  console.log("User ID:", req.userId);
+
   try {
     const userId = req.userId;
-    const teams = await teamModel.findByUser(userId);
 
-    res.json({ success: true, data: teams });
+    // Fetch raw teams
+    const rawTeams = await teamModel.findByUser(userId);
+
+    // Enrich each team with computed fields
+    const enrichedTeams = rawTeams.map((team) => {
+      const teamObj = team.toObject(); // safe plain object
+
+      return {
+        ...teamObj,
+        memberCount: team.memberCount || team.members?.length || 0,
+        isAdmin: team.isUserAdmin(userId),
+        role: team.getUserRole(userId) || "member", // fallback if method missing
+      };
+    });
+
+    console.log(`Fetched ${enrichedTeams.length} teams for user ${userId}`);
+    console.log("Enriched teams sample:", enrichedTeams[0]); // debug first one
+
+    res.json({ success: true, data: enrichedTeams });
   } catch (error) {
     console.error("Error fetching teams:", error);
     res.status(500).json({ success: false, error: "Failed to fetch teams" });

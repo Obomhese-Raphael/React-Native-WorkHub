@@ -81,18 +81,80 @@ export default function CreateTaskScreen() {
     }
   }, [taskId]);
 
+  // const handleSubmit = async () => {
+  //   if (!title.trim()) return Alert.alert("Error", "Title is required");
+  //   if (!isEditMode && !selectedProjectId) {
+  //     return Alert.alert("Error", "Please select a project");
+  //   }
+
+  //   setLoading(true);
+
+  //   try {
+  //     const token = await getToken();
+
+  //     const payload = {
+  //       title: title.trim(),
+  //       description: description.trim(),
+  //       // priority, assignees, etc. can be added later
+  //     };
+
+  //     const targetProjectId = isEditMode ? projectId : selectedProjectId;
+  //     const endpoint = isEditMode
+  //       ? `/tasks/${targetProjectId}/tasks/${taskId}` // ← FIXED URL (nested!)
+  //       : `/tasks/${targetProjectId}/tasks`; // ← FIXED URL
+
+  //     const method = isEditMode ? "PUT" : "POST";
+
+  //     console.log("Sending request to:", endpoint);
+  //     console.log("Method:", method);
+  //     console.log("Payload:", payload);
+
+  //     const response = await api(endpoint, token, {
+  //       method,
+  //       body: JSON.stringify(payload),
+  //     });
+
+  //     console.log("FULL API RESPONSE:", response); // ← this will show the truth
+
+  //     if (response?.success) {
+  //       Alert.alert(
+  //         "Success",
+  //         isEditMode
+  //           ? "Task updated successfully"
+  //           : "Task deployed successfully"
+  //       );
+  //       router.back();
+  //     } else {
+  //       throw new Error(response?.error || "Unknown backend response");
+  //     }
+  //   } catch (err: any) {
+  //     console.error("=== TASK CREATION FAILED ===");
+  //     console.error("Message:", err.message);
+  //     console.error("Full error:", err);
+
+  //     Alert.alert(
+  //       "Error",
+  //       `Failed to ${isEditMode ? "update" : "deploy"} task\n\n${err.message || "Check console"}`
+  //     );
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handleSubmit = async () => {
     if (!title.trim()) return Alert.alert("Error", "Title is required");
-    if (!isEditMode && !selectedProjectId)
+    if (!isEditMode && !selectedProjectId) {
       return Alert.alert("Error", "Please select a project");
+    }
 
     setLoading(true);
+
     try {
       const token = await getToken();
+
       const payload = {
         title: title.trim(),
         description: description.trim(),
-        priority,
       };
 
       const targetProjectId = isEditMode ? projectId : selectedProjectId;
@@ -100,53 +162,32 @@ export default function CreateTaskScreen() {
         ? `/tasks/${targetProjectId}/tasks/${taskId}`
         : `/tasks/${targetProjectId}/tasks`;
 
-      const method = isEditMode ? "PUT" : "POST";
+      console.log("Sending to:", endpoint);
+      console.log("Payload:", payload);
 
-      const res = await api(endpoint, token, {
-        method,
+      const apiResponse = await api(endpoint, token, {
+        method: isEditMode ? "PUT" : "POST",
         body: JSON.stringify(payload),
       });
 
-      console.log("━━━━━ RAW RESPONSE ━━━━━");
-      console.log("Status:", res.status); // ← very important
-      console.log("Full response object:", res);
-      console.log("Response.data:", res.data);
-      console.log("Has success flag?", res.data?.success);
-      console.log("━━━━━ END ━━━━━");
+      console.log("FULL API RESPONSE:", apiResponse); // ← this will now always show!
 
-      if (res.success) {
-        if (isEditMode) {
-          Alert.alert("Success", "Task updated successfully");
-          router.back();
-        } else {
-          Alert.alert("Success", "Task deployed successfully", [
-            { text: "OK", onPress: () => router.back() },
-          ]);
-        }
+      if (apiResponse.ok && apiResponse.data?.success) {
+        Alert.alert("Success", isEditMode ? "Task updated" : "Task deployed");
+        router.back();
       } else {
-        throw new Error(res.data?.error || "Unknown error occurred");
+        throw new Error(apiResponse.error || `HTTP ${apiResponse.status}`);
       }
     } catch (err: any) {
-      console.error("=== TASK CREATION FAILED ===");
-      console.error("Error message:", err.message);
-      console.error("Full error object:", err);
-
-      if (err.response) {
-        console.error("Response status:", err.response.status);
-        console.error("Response data:", err.response.data);
-      } else if (err.request) {
-        console.error("No response received - network issue?", err.request);
-      }
-
+      console.error("TASK DEPLOY FAILED:", err.message, err);
       Alert.alert(
         "Error",
-        `Failed to ${isEditMode ? "update" : "deploy"} task\n\n${err.message || "Unknown error"}`
+        `Failed to ${isEditMode ? "update" : "deploy"} task\n${err.message}`
       );
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <LinearGradient
       colors={["#0f172a", "#1e293b", "#0f172a"]}
