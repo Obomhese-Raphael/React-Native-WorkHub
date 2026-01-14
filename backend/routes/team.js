@@ -33,6 +33,8 @@ teamsRouter.get("/:id", teamController.getTeamById);
 teamsRouter.put("/:id", teamController.updateTeam);
 // Delete team
 teamsRouter.delete("/:id", teamController.deleteTeam);
+// Leave team
+teamsRouter.delete("/:id/members/self", teamController.leaveTeam);
 // Add member
 teamsRouter.put("/:id/add-member", teamController.addMember);
 // Invite member

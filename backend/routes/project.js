@@ -127,18 +127,15 @@ projectRouter.put(
   },
   updateProject
 );
-
 // Delete project
 projectRouter.delete(
-  "/:projectId",
+  "/team/:teamId/:projectId",
   requireAuth,
   getUserInfo,
   async (req, res, next) => {
-    const { projectId } = req.params;
-    if (!mongoose.isValidObjectId(projectId)) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid project ID" });
+    const { teamId, projectId } = req.params;
+    if (!mongoose.isValidObjectId(teamId) || !mongoose.isValidObjectId(projectId)) {
+      return res.status(400).json({ success: false, error: "Invalid ID format" });
     }
     next();
   },

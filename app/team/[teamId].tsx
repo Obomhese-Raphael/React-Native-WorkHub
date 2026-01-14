@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -71,6 +72,51 @@ export default function TeamDetailsScreen() {
     };
     fetchTeam();
   }, [teamId]);
+
+  const handleDeleteProject = (projectId: string, projectName: string) => {
+    Alert.alert(
+      "Delete Project",
+      `Are you sure you want to delete "${projectName}"?\n\nThis will archive the project and all its tasks. This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const token = await getToken();
+              const teamId = team?._id; // from your team state
+
+              const res = await api(
+                `/projects/team/${teamId}/${projectId}`,
+                token,
+                {
+                  method: "DELETE",
+                }
+              );
+
+              if (res.success) {
+                // Optimistic update: remove from local list
+                if (team) {
+                  // Guard against null
+                  setTeam({
+                    ...team, // Now TypeScript knows team is Team (not null)
+                    projects: team.projects.filter((p) => p._id !== projectId),
+                  });
+                }
+                Alert.alert("Success", `${projectName} deleted`);
+              } else {
+                throw new Error(res.error || "Failed to delete project");
+              }
+            } catch (err: any) {
+              console.error("Delete project failed:", err);
+              Alert.alert("Error", `Failed to delete project\n${err.message}`);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -208,37 +254,74 @@ export default function TeamDetailsScreen() {
           {team.projects && team.projects.length > 0 ? (
             <View className="space-y-5 pb-10">
               {team.projects.map((project) => (
-                <TouchableOpacity
-                  key={project._id}   
-                  onPress={() => router.push(`/projects/${project._id}`)}
-                  className="bg-slate-800/40 rounded-2xl p-6 border border-slate-700/50 flex-row items-center"
+                <View
+                  key={project._id}
+                  className="bg-slate-800/40 rounded-2xl p-6 border border-slate-700/50 relative"
                 >
+                  {/* Color accent bar */}
                   <View
                     className="w-4 h-full absolute left-0 rounded-l-2xl"
                     style={{ backgroundColor: project.color || "#8b5cf6" }}
                   />
-                  <View className="ml-6 flex-1">
-                    <Text className="text-white text-xl font-bold">
-                      {project.name}
-                    </Text>
-                    <Text className="text-slate-400 mt-1">
-                      {project.activeTaskCount} active task
-                      {project.activeTaskCount !== 1 ? "s" : ""}
-                    </Text>
+
+                  <View className="flex-row items-center justify-between">
+                    <TouchableOpacity
+                      onPress={() => router.push(`/projects/${project._id}`)}
+                      className="flex-row items-center flex-1"
+                    >
+                      <View className="ml-6 flex-1">
+                        <Text className="text-white text-xl font-bold">
+                          {project.name}
+                        </Text>
+                        <Text className="text-slate-400 mt-1">
+                          {project.activeTaskCount} active task
+                          {project.activeTaskCount !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={24}
+                        color="#94a3b8"
+                      />
+                    </TouchableOpacity>
+
+                    {/* Delete button – only for admins/owners */}
+                    {project.isUserEditorOrHigher && ( // ← Use enriched field from backend
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleDeleteProject(project._id, project.name)
+                        }
+                        className="ml-4 p-2"
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={24}
+                          color="#ef4444"
+                        />
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <Ionicons name="chevron-forward" size={24} color="#94a3b8" />
-                </TouchableOpacity>
+                </View>
               ))}
             </View>
           ) : (
-            <View className="bg-slate-800/30 rounded-2xl p-10 items-center mb-10 border border-slate-700/30">
-              <Text className="text-slate-500 text-center text-lg">
+            <TouchableOpacity
+              onPress={() => router.push("/create-project")} // ← Change to your actual create-project route
+              activeOpacity={0.8}
+              className="bg-slate-800/30 rounded-2xl p-10 items-center mb-10 border border-slate-700/30"
+            >
+              <View className="w-20 h-20 rounded-full bg-blue-600/20 items-center justify-center mb-4">
+                <Ionicons name="add" size={48} color="#60a5fa" />
+              </View>
+
+              <Text className="text-slate-400 text-center text-lg font-medium">
                 No projects yet
               </Text>
-              <Text className="text-slate-600 text-sm mt-2 text-center">
-                Create a project to see it here
+
+              <Text className="text-slate-500 text-sm mt-2 text-center">
+                Tap here to create your first project
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
         </ScrollView>
       </SafeAreaView>

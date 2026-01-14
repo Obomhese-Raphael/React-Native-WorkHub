@@ -310,6 +310,63 @@ const deleteTeam = async (req, res) => {
   }
 };
 
+// Leave team (remove self) - Current user leaves the team
+const leaveTeam = async (req, res) => {
+  try {
+    const { id: teamId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const team = await teamModel.findById(teamId);
+    if (!team || !team.isActive) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Team not found or inactive" });
+    }
+
+    // Prevent leaving if you're the last admin (optional safety)
+    const adminCount = team.members.filter((m) => m.role === "admin").length;
+    const isLastAdmin = team.createdBy === userId && adminCount === 1;
+
+    if (isLastAdmin) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "You are the last admin. Transfer ownership or delete the team instead.",
+      });
+    }
+
+    // Remove self from members array
+    const initialLength = team.members.length;
+    team.members = team.members.filter((m) => m.userId !== userId);
+
+    if (team.members.length === initialLength) {
+      return res.status(400).json({
+        success: false,
+        error: "You are not a member of this team",
+      });
+    }
+
+    // If you were the creator and no admins left, make first member admin (optional safety)
+    if (team.createdBy === userId && team.members.length > 0) {
+      team.members[0].role = "admin";
+    }
+
+    await team.save();
+
+    res.json({
+      success: true,
+      message: "You have successfully left the team",
+      data: { teamId },
+    });
+  } catch (error) {
+    console.error("Error leaving team:", error);
+    res.status(500).json({ success: false, error: "Failed to leave team" });
+  }
+};
 // Delete Member by Email - THIS IS NOT DONE YET ❌
 const deleteMember = async (req, res) => {
   try {
@@ -410,6 +467,7 @@ export default {
   updateTeam,
   deleteTeam,
   deleteMember,
+  leaveTeam,
   getAllTeams,
   searchTeams,
   inviteTeamMember,
