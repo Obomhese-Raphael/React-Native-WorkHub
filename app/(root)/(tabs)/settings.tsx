@@ -115,6 +115,7 @@ export default function SettingsScreen() {
       } as any);
 
       const token = await getToken();
+      console.log("Using token for upload:", token?.slice(0, 20) + "...");
 
       // Use the user-specific endpoint (more reliable)
       const userId = user?.id;
