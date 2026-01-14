@@ -72,7 +72,7 @@ const getAllTeams = async (req, res) => {
         ...teamObj,
         memberCount: team.memberCount || team.members?.length || 0,
         isAdmin: team.isUserAdmin(userId),
-        role: team.getUserRole(userId) || "member", // fallback if method missing
+        role: team.isAdmin ? "admin" : "member", // fallback if method missing
       };
     });
 
