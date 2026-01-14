@@ -83,8 +83,6 @@ export default function CreateTaskScreen() {
 
   const handleSubmit = async () => {
     if (!title.trim()) return Alert.alert("Error", "Title is required");
-    // Only require a project selection if we are NOT in edit mode
-    // (because in edit mode, the project is already established)
     if (!isEditMode && !selectedProjectId)
       return Alert.alert("Error", "Please select a project");
 
@@ -97,7 +95,6 @@ export default function CreateTaskScreen() {
         priority,
       };
 
-      // Use selectedProjectId for NEW tasks, or the projectId from params for EDITS
       const targetProjectId = isEditMode ? projectId : selectedProjectId;
       const endpoint = isEditMode
         ? `/tasks/${targetProjectId}/tasks/${taskId}`
@@ -110,19 +107,40 @@ export default function CreateTaskScreen() {
         body: JSON.stringify(payload),
       });
 
+      console.log("━━━━━ RAW RESPONSE ━━━━━");
+      console.log("Status:", res.status); // ← very important
+      console.log("Full response object:", res);
+      console.log("Response.data:", res.data);
+      console.log("Has success flag?", res.data?.success);
+      console.log("━━━━━ END ━━━━━");
+
       if (res.success) {
         if (isEditMode) {
+          Alert.alert("Success", "Task updated successfully");
           router.back();
         } else {
-          Alert.alert("Success", "Task deployed", [
+          Alert.alert("Success", "Task deployed successfully", [
             { text: "OK", onPress: () => router.back() },
           ]);
         }
+      } else {
+        throw new Error(res.data?.error || "Unknown error occurred");
       }
     } catch (err: any) {
+      console.error("=== TASK CREATION FAILED ===");
+      console.error("Error message:", err.message);
+      console.error("Full error object:", err);
+
+      if (err.response) {
+        console.error("Response status:", err.response.status);
+        console.error("Response data:", err.response.data);
+      } else if (err.request) {
+        console.error("No response received - network issue?", err.request);
+      }
+
       Alert.alert(
         "Error",
-        `Failed to ${isEditMode ? "update" : "deploy"} task`
+        `Failed to ${isEditMode ? "update" : "deploy"} task\n\n${err.message || "Unknown error"}`
       );
     } finally {
       setLoading(false);
@@ -167,6 +185,45 @@ export default function CreateTaskScreen() {
             </View>
 
             <View className="space-y-8 pb-10">
+              {/* Parent Project Selection - Hidden in Edit Mode */}
+              {/* {!isEditMode && (
+                <View>
+                  <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
+                    Parent Project Node
+                  </Text>
+                  <View className="flex-row flex-wrap">
+                    {projects.length === 0 ? (
+                      <View className="bg-slate-800/20 border border-dashed border-slate-700 p-4 rounded-2xl w-full">
+                        <Text className="text-slate-500 text-xs italic">
+                          No projects detected in ecosystem.
+                        </Text>
+                      </View>
+                    ) : (
+                      projects.map((proj) => (
+                        <TouchableOpacity
+                          key={proj._id}
+                          onPress={() => setSelectedProjectId(proj._id)}
+                          className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
+                            selectedProjectId === proj._id
+                              ? "border-blue-500 bg-blue-500/10"
+                              : "border-slate-700 bg-slate-800/40"
+                          }`}
+                        >
+                          <Text
+                            className={`font-bold text-sm ${
+                              selectedProjectId === proj._id
+                                ? "text-blue-400"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            {proj.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                </View>
+              )} */}
               {/* Parent Project Selection - Hidden in Edit Mode */}
               {!isEditMode && (
                 <View>

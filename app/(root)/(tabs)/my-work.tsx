@@ -49,9 +49,6 @@ export default function MyWorkScreen() {
       const token = await getToken();
       const taskToProcess = tasks.find((t) => t._id === taskId);
 
-      console.log("Task found:", taskToProcess); // ← add this
-      console.log("Project ID being used:", taskToProcess?.projectId?._id); // ← add this
-
       const pId = taskToProcess?.projectId?._id;
       if (!pId) {
         Alert.alert(
@@ -67,8 +64,6 @@ export default function MyWorkScreen() {
           : `/tasks/${pId}/tasks/${taskId}/archive`;
 
       const method = type === "delete" ? "DELETE" : "PATCH";
-
-      console.log(`Sending ${method} to: ${API_BASE_URL}${endpoint}`); // ← crucial debug
 
       const res = await api(endpoint, token, { method });
 
