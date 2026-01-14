@@ -55,29 +55,31 @@ const createTeam = async (req, res) => {
 
 // Get All Teams - Done ✅
 const getAllTeams = async (req, res) => {
-  console.log("🔥 DIRECT HIT: getAllTeams called");
-  console.log("User ID:", req.userId);
+  console.log("🔥 getAllTeams called for User ID:", req.userId);
 
   try {
     const userId = req.userId;
 
-    // Fetch raw teams
     const rawTeams = await teamModel.findByUser(userId);
 
-    // Enrich each team with computed fields
     const enrichedTeams = rawTeams.map((team) => {
-      const teamObj = team.toObject(); // safe plain object
+      const isCreator = team.createdBy === userId;
+      const isAdminMember = team.members.some(
+        (m) => m.userId === userId && m.role === "admin"
+      );
+
+      const userRole = isCreator || isAdminMember ? "admin" : "member";
 
       return {
-        ...teamObj,
-        memberCount: team.memberCount || team.members?.length || 0,
-        isAdmin: team.isUserAdmin(userId),
-        role: team.isAdmin ? "admin" : "member", // fallback if method missing
+        ...team.toObject(),
+        memberCount: team.members?.length || 0,
+        isAdmin: isCreator || isAdminMember,
+        role: userRole, // ← this is the correct computed role!
       };
     });
 
-    console.log(`Fetched ${enrichedTeams.length} teams for user ${userId}`);
-    console.log("Enriched teams sample:", enrichedTeams[0]); // debug first one
+    console.log(`Found ${enrichedTeams.length} teams`);
+    console.log("First team sample:", enrichedTeams[0]);
 
     res.json({ success: true, data: enrichedTeams });
   } catch (error) {
