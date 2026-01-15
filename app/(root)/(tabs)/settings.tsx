@@ -38,6 +38,8 @@ export default function SettingsScreen() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const BACKEND_URL = "https://react-native-work-hub-backend.vercel.app";
+
   // Notification toggles (local for now – can sync to backend/user later)
   const [notifications, setNotifications] = useState({
     taskAssigned: true,
@@ -83,11 +85,56 @@ export default function SettingsScreen() {
     }
   };
 
+  // const uploadAvatar = async () => {
+  //   try {
+  //     setUploading(true);
+
+  //     // Permission check
+  //     const { status } =
+  //       await ImagePicker.requestMediaLibraryPermissionsAsync();
+  //     if (status !== "granted") {
+  //       Alert.alert("Permission Denied", "We need access to your photos.");
+  //       return;
+  //     }
+
+  //     // Pick image
+  //     const result = await ImagePicker.launchImageLibraryAsync({
+  //       mediaTypes: ["images"],
+  //       allowsEditing: true,
+  //       aspect: [1, 1],
+  //       quality: 0.8,
+  //     });
+
+  //     if (result.canceled || !result.assets?.[0]?.uri) return;
+
+  //     const uri = result.assets[0].uri;
+
+  //     // Create a file object that Clerk can accept in React Native
+  //     const file = {
+  //       uri,
+  //       type: "image/jpeg",
+  //       name: "avatar.jpg",
+  //     };
+
+  //     // Use Clerk's setProfileImage method
+  //     await user?.setProfileImage({ file });
+
+  //     // Reload user data to show new avatar
+  //     await user?.reload();
+
+  //     Alert.alert("Success", "Avatar updated successfully!");
+  //   } catch (err) {
+  //     console.error("Avatar upload failed:", err);
+  //     Alert.alert("Error", `Failed to upload avatar: ${err.message}`);
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
+
   const uploadAvatar = async () => {
     try {
       setUploading(true);
 
-      // Permission check
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
@@ -95,7 +142,6 @@ export default function SettingsScreen() {
         return;
       }
 
-      // Pick image
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
@@ -107,44 +153,51 @@ export default function SettingsScreen() {
 
       const uri = result.assets[0].uri;
 
+      // Create FormData
       const formData = new FormData();
-      formData.append("file", {
+      formData.append("avatar", {
         uri,
-        name: "avatar.jpg",
         type: "image/jpeg",
+        name: "avatar.jpg",
       } as any);
 
+      // Get token
       const token = await getToken();
-      console.log("Using token for upload:", token?.slice(0, 20) + "...");
+      if (!token) {
+        Alert.alert("Error", "Authentication token not found.");
+        return;
+      }
 
-      // Use the user-specific endpoint (more reliable)
-      const userId = user?.id;
+      // Upload directly with fetch (NOT using the api helper)
       const response = await fetch(
-        `https://api.clerk.dev/v1/users/${userId}/profile_image`,
+        "https://react-native-work-hub-backend.vercel.app/api/users/avatar",
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
+            // DON'T set Content-Type - let FormData set it automatically
           },
           body: formData,
         }
       );
 
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Clerk upload failed: ${response.status} - ${errText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Upload failed");
       }
 
-      // Force hard refresh of user data
-      await user?.reload();
-      // Extra safety: wait a moment + force re-render
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.replace("/settings"); // or current route
+      const data = await response.json();
+      console.log("Upload successful:", data);
 
-      Alert.alert("Success", "Avatar updated! Refresh if not visible.");
-    } catch (err) {
+      // Reload user data
+      await user?.reload();
+
+      Alert.alert("Success", "Avatar updated successfully!");
+    } catch (err: any) {
       console.error("Avatar upload failed:", err);
-      Alert.alert("Error", "Failed to upload avatar. Try again.");
+      Alert.alert("Error", err.message || "Failed to upload avatar");
     } finally {
       setUploading(false);
     }
