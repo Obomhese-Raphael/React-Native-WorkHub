@@ -3,19 +3,23 @@ import { Feather, FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+
+// Required for OAuth to work properly
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -25,7 +29,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  // State for visibility toggle
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const handleEmailSignIn = async () => {
@@ -54,24 +58,29 @@ export default function SignInScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    if (!isLoaded) return;
+  const handleGoogleSignIn = useCallback(async () => {
+    if (!isLoaded || !signIn) return;
 
-    const redirectUrl = Linking.createURL("/", { scheme: "myapp" });
-
+    setGoogleLoading(true);
     try {
-      const { createdSessionId, status } = await signIn.create({
+      const redirectUrl = Linking.createURL("/");
+
+      await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl,
+        redirectUrlComplete: redirectUrl,
       });
-
-      if (status === "complete") {
-        await setActive({ session: createdSessionId });
-      }
-    } catch (err) {
-      console.error("Google Sign-In error", err);
+    } catch (err: any) {
+      console.error("OAuth error:", err);
+      Toast.show({
+        type: "error",
+        text1: "Authentication Failed",
+        text2: err?.errors?.[0]?.message || "Could not sign in with Google",
+        visibilityTime: 5000,
+      });
+      setGoogleLoading(false);
     }
-  };
+  }, [isLoaded, signIn]);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -87,7 +96,7 @@ export default function SignInScreen() {
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "android" ? "padding" : undefined}
         >
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
@@ -128,7 +137,6 @@ export default function SignInScreen() {
                     placeholder="••••••••"
                     value={password}
                     onChangeText={setPassword}
-                    // Toggle visibility based on state
                     secureTextEntry={!isPasswordVisible}
                     className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-5 text-white text-base pr-14"
                     placeholderTextColor="#475569"
@@ -145,11 +153,13 @@ export default function SignInScreen() {
                   </TouchableOpacity>
                 </View>
                 <View className="mt-4 items-end">
-                    <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")}>
-                        <Text className="text-blue-400 font-bold text-sm">
-                            Forgot Security Code?
-                        </Text>
-                    </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(auth)/forgot-password")}
+                  >
+                    <Text className="text-blue-400 font-bold text-sm">
+                      Forgot Security Code?
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -190,12 +200,19 @@ export default function SignInScreen() {
 
               <TouchableOpacity
                 onPress={handleGoogleSignIn}
+                disabled={googleLoading}
                 className="w-full bg-slate-800/30 border border-slate-700/50 rounded-2xl py-5 flex-row justify-center items-center"
               >
-                <FontAwesome name="google" size={18} color="#94a3b8" />
-                <Text className="text-slate-300 font-bold text-base ml-3">
-                  Continue with Google
-                </Text>
+                {googleLoading ? (
+                  <ActivityIndicator color="#94a3b8" />
+                ) : (
+                  <>
+                    <FontAwesome name="google" size={18} color="#94a3b8" />
+                    <Text className="text-slate-300 font-bold text-base ml-3">
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
 

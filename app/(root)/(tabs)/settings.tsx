@@ -38,8 +38,6 @@ export default function SettingsScreen() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const BACKEND_URL = "https://react-native-work-hub-backend.vercel.app";
-
   // Notification toggles (local for now – can sync to backend/user later)
   const [notifications, setNotifications] = useState({
     taskAssigned: true,
@@ -410,16 +408,6 @@ export default function SettingsScreen() {
               </>
             )}
           </View>
-          {/* Quick Actions */}
-          <View className="flex-row flex justify-around mb-10">
-            <TouchableOpacity
-              onPress={handleSignOut}
-              className="bg-red-600/80 px-6 py-4 rounded-2xl items-center flex-1 flex"
-            >
-              <Ionicons name="log-out" size={24} color="white" />
-              <Text className="text-white mt-2 font-medium">Sign Out</Text>
-            </TouchableOpacity>
-          </View>
           {/* Teams Section */}
           <View className="mb-10">
             <View className="flex-row justify-between items-center mb-4">
@@ -551,13 +539,6 @@ export default function SettingsScreen() {
                 disabled={loadingPrefs || saving}
               />
             </View>
-
-            {/* Optional subtle hint when saving */}
-            {saving && (
-              <Text className="text-slate-500 text-xs text-center mt-3 italic">
-                Saving...
-              </Text>
-            )}
           </View>
 
           {/* Security */}
@@ -572,6 +553,16 @@ export default function SettingsScreen() {
                 Change Password
               </Text>
               <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSignOut}
+              className="py-4 border-b border-slate-700 flex-row justify-between items-center"
+            >
+              <Text className="text-slate-200 text-base font-medium">
+                Sign Out
+              </Text>
+              <Ionicons name="log-out-outline" size={20} color="#94a3b8" />
             </TouchableOpacity>
 
             <TouchableOpacity

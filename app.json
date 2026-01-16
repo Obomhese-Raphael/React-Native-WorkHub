@@ -9,13 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.obomheser.workhub"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/expo_icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.obomheser.workhub",
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -41,7 +43,8 @@
         }
       ],
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
