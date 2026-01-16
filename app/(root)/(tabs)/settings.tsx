@@ -46,6 +46,61 @@ export default function SettingsScreen() {
     dueReminders: true,
     mentions: true,
   });
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Load notification preferences from local storage or backend
+    const loadPreferences = async () => {
+      if (!isLoaded || !user) return;
+      try {
+        setLoadingPrefs(true);
+        const token = await getToken();
+        const res = await api("/users/notifications", token);
+
+        if (res.success && res?.notifications) {
+          setNotifications(res.notifications);
+        }
+      } catch (err) {
+        console.error("Failed to load notification preferences:", err);
+      } finally {
+        setLoadingPrefs(false);
+      }
+    };
+
+    loadPreferences();
+  }, [isLoaded, user]);
+
+  const savePreferences = async (newPrefs: typeof notifications) => {
+    try {
+      setSaving(true);
+      const token = await getToken();
+      const res = await api("/users/notifications", token, {
+        method: "PATCH",
+        body: JSON.stringify({ notifications: newPrefs }),
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || "Failed to save preferences");
+      }
+    } catch (error) {
+      console.error("Failed to save notification preferences:", error);
+      Alert.alert(
+        "Error",
+        "Failed to save notification preferences. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggle =
+    (key: keyof typeof notifications) => (value: boolean) => {
+      if (loadingPrefs || saving) return;
+      const updated = { ...notifications, [key]: value };
+      setNotifications(updated);
+      savePreferences(updated);
+    };
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -85,65 +140,19 @@ export default function SettingsScreen() {
     }
   };
 
-  // const uploadAvatar = async () => {
-  //   try {
-  //     setUploading(true);
-
-  //     // Permission check
-  //     const { status } =
-  //       await ImagePicker.requestMediaLibraryPermissionsAsync();
-  //     if (status !== "granted") {
-  //       Alert.alert("Permission Denied", "We need access to your photos.");
-  //       return;
-  //     }
-
-  //     // Pick image
-  //     const result = await ImagePicker.launchImageLibraryAsync({
-  //       mediaTypes: ["images"],
-  //       allowsEditing: true,
-  //       aspect: [1, 1],
-  //       quality: 0.8,
-  //     });
-
-  //     if (result.canceled || !result.assets?.[0]?.uri) return;
-
-  //     const uri = result.assets[0].uri;
-
-  //     // Create a file object that Clerk can accept in React Native
-  //     const file = {
-  //       uri,
-  //       type: "image/jpeg",
-  //       name: "avatar.jpg",
-  //     };
-
-  //     // Use Clerk's setProfileImage method
-  //     await user?.setProfileImage({ file });
-
-  //     // Reload user data to show new avatar
-  //     await user?.reload();
-
-  //     Alert.alert("Success", "Avatar updated successfully!");
-  //   } catch (err) {
-  //     console.error("Avatar upload failed:", err);
-  //     Alert.alert("Error", `Failed to upload avatar: ${err.message}`);
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // };
-
   const uploadAvatar = async () => {
     try {
       setUploading(true);
 
-      const { status } =
+      const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
+      if (permission.status !== "granted") {
         Alert.alert("Permission Denied", "We need access to your photos.");
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -151,53 +160,27 @@ export default function SettingsScreen() {
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
 
-      const uri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const uri = asset.uri;
 
-      // Create FormData
-      const formData = new FormData();
-      formData.append("avatar", {
+      // This is the magic line – type assertion
+      const file = {
         uri,
-        type: "image/jpeg",
-        name: "avatar.jpg",
-      } as any);
+        name: asset.fileName || `avatar-${Date.now()}.jpg`,
+        type: asset.mimeType || "image/jpeg",
+      } as unknown as File; // ← double cast: first to unknown, then to File
+      // Now Clerk is happy
+      await user?.setProfileImage({ file });
 
-      // Get token
-      const token = await getToken();
-      if (!token) {
-        Alert.alert("Error", "Authentication token not found.");
-        return;
-      }
-
-      // Upload directly with fetch (NOT using the api helper)
-      const response = await fetch(
-        "https://react-native-work-hub-backend.vercel.app/api/users/avatar",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            // DON'T set Content-Type - let FormData set it automatically
-          },
-          body: formData,
-        }
-      );
-
-      console.log("Response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Upload failed");
-      }
-
-      const data = await response.json();
-      console.log("Upload successful:", data);
-
-      // Reload user data
       await user?.reload();
 
       Alert.alert("Success", "Avatar updated successfully!");
     } catch (err: any) {
       console.error("Avatar upload failed:", err);
-      Alert.alert("Error", err.message || "Failed to upload avatar");
+      Alert.alert(
+        "Error",
+        err.errors?.[0]?.longMessage || err.message || "Failed to upload avatar"
+      );
     } finally {
       setUploading(false);
     }
@@ -367,18 +350,16 @@ export default function SettingsScreen() {
               </>
             )}
           </View>
-
           {/* Quick Actions */}
-          <View className="flex-row justify-around mb-10">
+          <View className="flex-row flex justify-around mb-10">
             <TouchableOpacity
               onPress={handleSignOut}
-              className="bg-red-600/80 px-6 py-4 rounded-2xl items-center flex-1"
+              className="bg-red-600/80 px-6 py-4 rounded-2xl items-center flex-1 flex"
             >
               <Ionicons name="log-out" size={24} color="white" />
               <Text className="text-white mt-2 font-medium">Sign Out</Text>
             </TouchableOpacity>
           </View>
-
           {/* Teams Section */}
           <View className="mb-10">
             <View className="flex-row justify-between items-center mb-4">
@@ -458,49 +439,72 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* Notifications Section */}
+          {/* Notification Preferences */}
           <View className="mb-10 bg-slate-800/60 rounded-2xl p-5 border border-slate-700">
-            <Text className="text-white text-xl font-bold mb-4">
-              Notifications
-            </Text>
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white text-xl font-bold">
+                Notifications
+              </Text>
+              {loadingPrefs && (
+                <ActivityIndicator size="small" color="#60a5fa" />
+              )}
+            </View>
 
+            {/* Task Assigned Toggle */}
             <View className="flex-row justify-between items-center py-3 border-b border-slate-700">
-              <Text className="text-slate-300 flex-1">Task assigned to me</Text>
+              <Text className="text-slate-300 flex-1 text-base">
+                Task assigned to me
+              </Text>
               <Switch
                 value={notifications.taskAssigned}
-                onValueChange={(v) =>
-                  setNotifications({ ...notifications, taskAssigned: v })
-                }
+                onValueChange={handleToggle("taskAssigned")}
                 trackColor={{ false: "#475569", true: "#60a5fa" }}
                 thumbColor={notifications.taskAssigned ? "#ffffff" : "#94a3b8"}
+                disabled={loadingPrefs || saving}
               />
+              // Optional visual feedback
+              {saving && (
+                <Text className="text-slate-500 text-xs italic mt-2 text-center">
+                  Saving preferences...
+                </Text>
+              )}
             </View>
 
+            {/* Due Date Reminders Toggle */}
             <View className="flex-row justify-between items-center py-3 border-b border-slate-700">
-              <Text className="text-slate-300 flex-1">Due date reminders</Text>
+              <Text className="text-slate-300 flex-1 text-base">
+                Due date reminders
+              </Text>
               <Switch
                 value={notifications.dueReminders}
-                onValueChange={(v) =>
-                  setNotifications({ ...notifications, dueReminders: v })
-                }
+                onValueChange={handleToggle("dueReminders")}
                 trackColor={{ false: "#475569", true: "#60a5fa" }}
                 thumbColor={notifications.dueReminders ? "#ffffff" : "#94a3b8"}
+                disabled={loadingPrefs || saving}
               />
             </View>
 
+            {/* Mentions & Comments Toggle */}
             <View className="flex-row justify-between items-center py-3">
-              <Text className="text-slate-300 flex-1">Mentions & comments</Text>
+              <Text className="text-slate-300 flex-1 text-base">
+                Mentions & comments
+              </Text>
               <Switch
                 value={notifications.mentions}
-                onValueChange={(v) =>
-                  setNotifications({ ...notifications, mentions: v })
-                }
+                onValueChange={handleToggle("mentions")}
                 trackColor={{ false: "#475569", true: "#60a5fa" }}
                 thumbColor={notifications.mentions ? "#ffffff" : "#94a3b8"}
+                disabled={loadingPrefs || saving}
               />
             </View>
-          </View>
 
+            {/* Optional subtle hint when saving */}
+            {saving && (
+              <Text className="text-slate-500 text-xs text-center mt-3 italic">
+                Saving...
+              </Text>
+            )}
+          </View>
           {/* App Info */}
           <View className="items-center pb-20">
             <Text className="text-slate-600 text-sm">
