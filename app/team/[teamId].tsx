@@ -67,6 +67,7 @@ export default function TeamDetailsScreen() {
     if (!teamId) return;
     try {
       const token = await getToken();
+      console.log("Token fetched for team data:", token);
       // Use your existing endpoint that returns team + projects
       const res = await api(`/projects/team/${teamId}`, token); // This returns projects
       const projectsRes = res.data || [];
@@ -166,14 +167,22 @@ export default function TeamDetailsScreen() {
   };
 
   // const confirmRemoveMember = (member: {
-  //   userId: any;
-  //   name: any;
-  //   email: any;
-  //   role?: string;
+  //   userId?: string;
+  //   name?: string;
+  //   email?: string;
   // }) => {
+  //   if (!member.userId) {
+  //     Alert.alert(
+  //       "Pending Invite",
+  //       "This is a pending invitation (no userId yet). You can only remove active members.\n\nTo revoke, delete the invite from Clerk dashboard for now.",
+  //       [{ text: "OK" }]
+  //     );
+  //     return;
+  //   }
+
   //   Alert.alert(
   //     "Remove Member",
-  //     `Remove ${member.name || member.email} from ${team?.name}?\n\nThey will lose access to all projects and tasks.`,
+  //     `Remove ${member.name || member.email} from ${team?.name}?`,
   //     [
   //       { text: "Cancel", style: "cancel" },
   //       {
@@ -182,31 +191,42 @@ export default function TeamDetailsScreen() {
   //         onPress: async () => {
   //           try {
   //             const token = await getToken();
-  //             const identifier = member.userId || member.email;
-  //             console.log("Removing member with identifier:", identifier);
+  //             const url = `/teams/${teamId}/members/${member.userId}`;
 
-  //             await api(`/teams/${teamId}/members/${identifier}`, token, {
-  //               method: "DELETE",
-  //             });
+  //             console.log("DELETE attempt → URL:", url);
+  //             console.log("Member userId:", member.userId);
 
-  //             // Optimistic update
+  //             const res = await api(url, token, { method: "DELETE" });
+
+  //             console.log("DELETE full response:", res); // ← This is what you're missing
+
+  //             if (!res.success) {
+  //               throw new Error(res.error || "Backend rejected removal");
+  //             }
+
+  //             // Optimistic UI update
   //             setTeam((prev) =>
   //               prev
   //                 ? {
   //                     ...prev,
   //                     members: prev.members.filter(
-  //                       (m) => (m.userId || m.email) !== identifier
+  //                       (m) => m.userId !== member.userId
   //                     ),
   //                   }
   //                 : null
   //             );
 
-  //             Toast.show({ type: "success", text1: "Member removed" });
+  //             Toast.show({
+  //               type: "success",
+  //               text1: "Member Removed",
+  //               text2: "Access revoked successfully",
+  //             });
   //           } catch (err: any) {
+  //             console.error("Remove member full error:", err);
   //             Toast.show({
   //               type: "error",
-  //               text1: "Failed to remove",
-  //               text2: err.message,
+  //               text1: "Failed to remove member",
+  //               text2: err.message || "Check console for details",
   //             });
   //           }
   //         },
@@ -216,41 +236,39 @@ export default function TeamDetailsScreen() {
   // };
 
   const confirmRemoveMember = (member: {
-  userId: string;
-  name?: string;
-  email?: string;
-}) => {
-  if (!member.userId) {
-    Alert.alert(
-      "Pending invite",
-      "You can only remove active members. Pending invites must be revoked separately."
-    );
-    return;
-  }
+    userId?: string;
+    name?: string;
+    email?: string;
+  }) => {
+    if (!member.userId) {
+      Alert.alert("Pending Invite", "You can only remove active members.");
+      return;
+    }
 
-  Alert.alert(
-    "Remove Member",
-    `Remove ${member.name || member.email} from ${team?.name}?`,
-    [
+    // Check if current user is removing themselves
+    const isSelf = member.userId === user?.id;
+    const alertTitle = isSelf ? "Leave Team" : "Remove Member";
+    const alertMsg = isSelf
+      ? `Are you sure you want to leave ${team?.name}?`
+      : `Remove ${member.name || member.email} from ${team?.name}?`;
+
+    Alert.alert(alertTitle, alertMsg, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Remove",
+        text: isSelf ? "Leave" : "Remove",
         style: "destructive",
         onPress: async () => {
           try {
             const token = await getToken();
-
-            const res = await api(
-              `/teams/${teamId}/members/${member.userId}`,
-              token,
-              { method: "DELETE" }
-            );
+            // Note: ensure teamId variable is accessible in this scope
+            const url = `/teams/${teamId}/members/${member.userId}`;
+            const res = await api(url, token, { method: "DELETE" });
 
             if (!res.success) {
-              throw new Error(res.error || "Failed to remove member");
+              throw new Error(res.error || "Backend rejected removal");
             }
 
-            // Optimistic update
+            // 1. Update UI Optimistically
             setTeam((prev) =>
               prev
                 ? {
@@ -262,23 +280,33 @@ export default function TeamDetailsScreen() {
                 : null
             );
 
-            Toast.show({
-              type: "success",
-              text1: "Member removed",
-            });
+            // 2. If user left the team, redirect them away
+            if (isSelf) {
+              router.replace("/(root)/(tabs)/settings"); // Go back to settings/home
+              Toast.show({
+                type: "success",
+                text1: "Left Team",
+                text2: `You are no longer a member of ${team?.name}`,
+              });
+            } else {
+              Toast.show({
+                type: "success",
+                text1: "Member Removed",
+                text2: "Access revoked successfully",
+              });
+            }
           } catch (err: any) {
+            console.error("Remove member error:", err);
             Toast.show({
               type: "error",
-              text1: "Failed to remove member",
+              text1: "Action Failed",
               text2: err.message,
             });
           }
         },
       },
-    ]
-  );
-};
-
+    ]);
+  };
 
   if (loading) {
     return (

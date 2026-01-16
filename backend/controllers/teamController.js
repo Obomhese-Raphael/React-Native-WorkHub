@@ -368,14 +368,100 @@ const leaveTeam = async (req, res) => {
   }
 };
 // Delete Member by Email - THIS IS NOT DONE YET ❌
+// const deleteMember = async (req, res) => {
+//   try {
+//     const { id: teamId, userId } = req.params;
+
+//     if (!userId) {
+//       return res
+//         .status(400)
+//         .json({ success: false, error: "User ID is required" });
+//     }
+
+//     const team = await teamModel.findById(teamId);
+
+//     if (!team) {
+//       return res.status(404).json({ success: false, error: "Team not found" });
+//     }
+
+//     if (!team.isActive) {
+//       return res.status(400).json({
+//         success: false,
+//         error: "Cannot modify inactive team",
+//       });
+//     }
+
+//     const currentUserId = req.userId;
+
+//     if (!currentUserId) {
+//       return res.status(401).json({
+//         success: false,
+//         error: "Unauthenticated",
+//       });
+//     }
+
+//     // ✅ Admin check
+//     const isAdmin = team.members.some(
+//       (m) => m.userId === currentUserId && m.role === "admin"
+//     );
+
+//     if (!isAdmin) {
+//       return res.status(403).json({
+//         success: false,
+//         error: "Only team admins can remove members",
+//       });
+//     }
+
+//     // ❌ Prevent self-removal
+//     if (currentUserId === userId) {
+//       return res.status(400).json({
+//         success: false,
+//         error: "You cannot remove yourself",
+//       });
+//     }
+
+//     const initialLength = team.members.length;
+
+//     // ✅ Remove by Clerk userId
+//     team.members = team.members.filter((m) => m.userId !== userId);
+
+//     if (team.members.length === initialLength) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Member not found in team",
+//       });
+//     }
+
+//     await team.save();
+
+//     res.json({
+//       success: true,
+//       message: "Member removed successfully",
+//       data: {
+//         teamId: team._id,
+//         removedUserId: userId,
+//         remainingMembers: team.members.length,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error removing member from team:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to remove member",
+//     });
+//   }
+// };
+
 const deleteMember = async (req, res) => {
   try {
-    const { teamId, userId } = req.params;
+    // 1. Destructure correctly (id matches :id in the router)
+    const { id: teamId, userId } = req.params;
+    const currentUserId = req.userId;
 
-    if (!userId) {
+    if (!userId || !teamId) {
       return res
         .status(400)
-        .json({ success: false, error: "User ID is required" });
+        .json({ success: false, error: "Team ID and User ID are required" });
     }
 
     const team = await teamModel.findById(teamId);
@@ -385,70 +471,67 @@ const deleteMember = async (req, res) => {
     }
 
     if (!team.isActive) {
-      return res.status(400).json({
-        success: false,
-        error: "Cannot modify inactive team",
-      });
+      return res
+        .status(400)
+        .json({ success: false, error: "Cannot modify inactive team" });
     }
 
-    const currentUserId = req.userId;
+    // 2. Determine Action Type
+    const isSelfRemoval = currentUserId === userId;
 
-    if (!currentUserId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthenticated",
-      });
+    // 3. Authorization Logic
+    if (!isSelfRemoval) {
+      // If NOT removing self, must be an admin
+      const isAdmin = team.members.some(
+        (m) => m.userId === currentUserId && m.role === "admin"
+      );
+
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: "Only team admins can remove other members",
+        });
+      }
     }
 
-    // ✅ Admin check
-    const isAdmin = team.members.some(
-      (m) => m.userId === currentUserId && m.role === "admin"
-    );
-
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: "Only team admins can remove members",
-      });
+    // 4. Prevention: Don't let the last Admin leave (optional but recommended)
+    const memberToRemove = team.members.find((m) => m.userId === userId);
+    if (memberToRemove?.role === "admin") {
+      const adminCount = team.members.filter((m) => m.role === "admin").length;
+      if (adminCount <= 1) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "You are the only admin. Assign another admin before leaving or deleting the team.",
+        });
+      }
     }
 
-    // ❌ Prevent self-removal
-    if (currentUserId === userId) {
-      return res.status(400).json({
-        success: false,
-        error: "You cannot remove yourself",
-      });
-    }
-
+    // 5. Perform removal
     const initialLength = team.members.length;
-
-    // ✅ Remove by Clerk userId
     team.members = team.members.filter((m) => m.userId !== userId);
 
     if (team.members.length === initialLength) {
-      return res.status(404).json({
-        success: false,
-        error: "Member not found in team",
-      });
+      return res
+        .status(404)
+        .json({ success: false, error: "Member not found in team" });
     }
 
     await team.save();
 
     res.json({
       success: true,
-      message: "Member removed successfully",
+      message: isSelfRemoval
+        ? "You have left the team"
+        : "Member removed successfully",
       data: {
         teamId: team._id,
         removedUserId: userId,
-        remainingMembers: team.members.length,
       },
     });
   } catch (error) {
-    console.error("Error removing member from team:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to remove member",
-    });
+    console.error("Error in deleteMember:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
 
