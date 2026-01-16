@@ -13,7 +13,7 @@ userRouter.patch(
 );
 
 // Get current notification preferences
-router.get("/notifications", requireAuth, getUserInfo, async (req, res) => {
+userRouter.get("/notifications", requireAuth, getUserInfo, async (req, res) => {
   try {
     const user = await clerkClient.users.getUser(req.userId);
     const prefs = user.privateMetadata?.notifications || {
@@ -30,7 +30,7 @@ router.get("/notifications", requireAuth, getUserInfo, async (req, res) => {
 });
 
 // Update notification preferences
-router.patch('/notifications', requireAuth, getUserInfo, async (req, res) => {
+userRouter.patch('/notifications', requireAuth, getUserInfo, async (req, res) => {
   try {
     const { notifications } = req.body;
 
@@ -66,7 +66,7 @@ router.patch('/notifications', requireAuth, getUserInfo, async (req, res) => {
 });
 
 // Optional: GET endpoint to fetch current prefs
-router.get('/notifications', requireAuth, getUserInfo, async (req, res) => {
+userRouter.get('/notifications', requireAuth, getUserInfo, async (req, res) => {
   try {
     const user = await clerkClient.users.getUser(req.userId);
     const prefs = user.privateMetadata?.notifications || {
