@@ -261,6 +261,66 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleChangePassword = async () => {
+    Alert.alert("Change Password", "We'll send a reset link to your email.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Send Link",
+        onPress: async () => {
+          try {
+            setSaving(true);
+            const token = await getToken();
+            const res = await api("/users/password-reset", token, {
+              method: "POST",
+            });
+            if (res?.success) {
+              Alert.alert("Email Sent", "Check inbox/spam for reset link.");
+            } else {
+              throw new Error(res?.error || "Failed");
+            }
+          } catch (err) {
+            Alert.alert("Error", "Couldn't send reset link.");
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This is permanent. All data lost.\n\nType 'DELETE' to confirm.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Forever",
+          style: "destructive",
+          onPress: async () => {
+            Alert.alert("Final Check", "Type 'DELETE' again:", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Confirm",
+                style: "destructive",
+                onPress: async (text?: string) => {
+                  if (text?.trim().toUpperCase() !== "DELETE") return;
+                  try {
+                    await user?.delete();
+                    await signOut();
+                    router.replace("/(auth)/sign-in");
+                  } catch (err) {
+                    Alert.alert("Error", "Deletion failed");
+                  }
+                },
+              },
+            ]);
+          },
+        },
+      ]
+    );
+  };
+
   if (!isLoaded) {
     return (
       <LinearGradient colors={["#0f172a", "#1e293b"]} className="flex-1">
@@ -462,12 +522,6 @@ export default function SettingsScreen() {
                 thumbColor={notifications.taskAssigned ? "#ffffff" : "#94a3b8"}
                 disabled={loadingPrefs || saving}
               />
-              // Optional visual feedback
-              {saving && (
-                <Text className="text-slate-500 text-xs italic mt-2 text-center">
-                  Saving preferences...
-                </Text>
-              )}
             </View>
 
             {/* Due Date Reminders Toggle */}
@@ -505,6 +559,32 @@ export default function SettingsScreen() {
               </Text>
             )}
           </View>
+
+          {/* Security */}
+          <View className="mb-10 bg-slate-800/60 rounded-2xl p-5 border border-slate-700">
+            <Text className="text-white text-xl font-bold mb-4">Security</Text>
+
+            <TouchableOpacity
+              onPress={handleChangePassword}
+              className="py-4 border-b border-slate-700 flex-row justify-between items-center"
+            >
+              <Text className="text-slate-200 text-base font-medium">
+                Change Password
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              className="py-4 flex-row justify-between items-center"
+            >
+              <Text className="text-red-400 text-base font-medium">
+                Delete Account
+              </Text>
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+
           {/* App Info */}
           <View className="items-center pb-20">
             <Text className="text-slate-600 text-sm">

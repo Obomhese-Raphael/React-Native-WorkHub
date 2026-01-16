@@ -1,6 +1,6 @@
 import { clerkClient } from "@clerk/express";
 import express from "express";
-import { updateAvatar } from "../controllers/userController.js";
+import { requestPasswordReset, updateAvatar } from "../controllers/userController.js";
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
 
 const userRouter = express.Router();
@@ -84,5 +84,7 @@ userRouter.get('/notifications', requireAuth, getUserInfo, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch preferences' });
   }
 });
+
+userRouter.post("/password-reset", requireAuth, getUserInfo, requestPasswordReset);
 
 export default userRouter;
