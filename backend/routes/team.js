@@ -40,6 +40,6 @@ teamsRouter.put("/:id/add-member", teamController.addMember);
 // Invite member
 teamsRouter.post("/:id/invites", teamController.inviteTeamMember);
 // Remove member by email (most user-friendly)
-teamsRouter.delete("/:id/members/:email", teamController.deleteMember);
+teamsRouter.delete("/:id/members/:userId", teamController.deleteMember);
 
 export default teamsRouter;

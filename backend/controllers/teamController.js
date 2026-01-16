@@ -370,12 +370,12 @@ const leaveTeam = async (req, res) => {
 // Delete Member by Email - THIS IS NOT DONE YET ❌
 const deleteMember = async (req, res) => {
   try {
-    const { id: teamId, email: memberEmail } = req.params;
+    const { teamId, userId } = req.params;
 
-    if (!memberEmail) {
+    if (!userId) {
       return res
         .status(400)
-        .json({ success: false, error: "Member email is required" });
+        .json({ success: false, error: "User ID is required" });
     }
 
     const team = await teamModel.findById(teamId);
@@ -385,12 +385,12 @@ const deleteMember = async (req, res) => {
     }
 
     if (!team.isActive) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Cannot modify inactive team" });
+      return res.status(400).json({
+        success: false,
+        error: "Cannot modify inactive team",
+      });
     }
 
-    // Check if current user is admin (important!)
     const currentUserId = req.userId;
 
     if (!currentUserId) {
@@ -400,25 +400,35 @@ const deleteMember = async (req, res) => {
       });
     }
 
+    // ✅ Admin check
     const isAdmin = team.members.some(
       (m) => m.userId === currentUserId && m.role === "admin"
     );
 
     if (!isAdmin) {
-      return res
-        .status(403)
-        .json({ success: false, error: "Only team admins can remove members" });
+      return res.status(403).json({
+        success: false,
+        error: "Only team admins can remove members",
+      });
+    }
+
+    // ❌ Prevent self-removal
+    if (currentUserId === userId) {
+      return res.status(400).json({
+        success: false,
+        error: "You cannot remove yourself",
+      });
     }
 
     const initialLength = team.members.length;
 
-    // Remove member by email
-    team.members = team.members.filter((m) => m.email !== memberEmail);
+    // ✅ Remove by Clerk userId
+    team.members = team.members.filter((m) => m.userId !== userId);
 
     if (team.members.length === initialLength) {
       return res.status(404).json({
         success: false,
-        error: "Member with that email not found in team",
+        error: "Member not found in team",
       });
     }
 
@@ -429,13 +439,16 @@ const deleteMember = async (req, res) => {
       message: "Member removed successfully",
       data: {
         teamId: team._id,
-        removedEmail: memberEmail,
+        removedUserId: userId,
         remainingMembers: team.members.length,
       },
     });
   } catch (error) {
     console.error("Error removing member from team:", error);
-    res.status(500).json({ success: false, error: "Failed to remove member" });
+    res.status(500).json({
+      success: false,
+      error: "Failed to remove member",
+    });
   }
 };
 

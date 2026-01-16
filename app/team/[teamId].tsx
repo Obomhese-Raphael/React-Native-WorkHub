@@ -1,6 +1,6 @@
 // app/team/[teamId].tsx
 import { api } from "@/lib/api";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -8,12 +8,15 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 interface Team {
   _id: string;
@@ -39,6 +42,13 @@ export default function TeamDetailsScreen() {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  // const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+  const { user } = useUser();
 
   const getInitial = (name: string) => name.charAt(0).toUpperCase();
 
@@ -53,25 +63,26 @@ export default function TeamDetailsScreen() {
   const activeTaskCount = (project: Project) =>
     project.tasks?.filter((t) => t.isActive).length || 0;
 
-  useEffect(() => {
-    const fetchTeam = async () => {
-      if (!teamId) return;
-      try {
-        const token = await getToken();
-        // Use your existing endpoint that returns team + projects
-        const res = await api(`/projects/team/${teamId}`, token); // This returns projects
-        const projectsRes = res.data || [];
+  const fetchTeam = async () => {
+    if (!teamId) return;
+    try {
+      const token = await getToken();
+      // Use your existing endpoint that returns team + projects
+      const res = await api(`/projects/team/${teamId}`, token); // This returns projects
+      const projectsRes = res.data || [];
 
-        // Fetch team separately for full details
-        const teamRes = await api(`/teams/${teamId}`, token);
-        teamRes.data.isAdmin === true ? setIsAdmin(true) : setIsAdmin(false);
-        setTeam({ ...teamRes.data, projects: projectsRes });
-      } catch (err) {
-        console.error("Failed to load team data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Fetch team separately for full details
+      const teamRes = await api(`/teams/${teamId}`, token);
+      teamRes.data.isAdmin === true ? setIsAdmin(true) : setIsAdmin(false);
+      setTeam({ ...teamRes.data, projects: projectsRes });
+    } catch (err) {
+      console.error("Failed to load team data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTeam();
   }, [teamId]);
 
@@ -119,6 +130,155 @@ export default function TeamDetailsScreen() {
       ]
     );
   };
+
+  const handleAddMember = async () => {
+    if (!newMemberEmail.trim()) return;
+
+    setAddingMember(true);
+
+    try {
+      const token = await getToken();
+      const res = await api(`/teams/${teamId}/invites`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          email: newMemberEmail.trim(),
+          role: "member",
+        }),
+      });
+
+      if (res.success) {
+        Alert.alert("Success 🎉", "New member added successfully", [
+          {
+            text: "OK",
+            onPress: async () => {
+              await fetchTeam(); // reload team
+              setShowAddMemberModal(false);
+              setNewMemberEmail("");
+            },
+          },
+        ]);
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to add member. Try again.");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  // const confirmRemoveMember = (member: {
+  //   userId: any;
+  //   name: any;
+  //   email: any;
+  //   role?: string;
+  // }) => {
+  //   Alert.alert(
+  //     "Remove Member",
+  //     `Remove ${member.name || member.email} from ${team?.name}?\n\nThey will lose access to all projects and tasks.`,
+  //     [
+  //       { text: "Cancel", style: "cancel" },
+  //       {
+  //         text: "Remove",
+  //         style: "destructive",
+  //         onPress: async () => {
+  //           try {
+  //             const token = await getToken();
+  //             const identifier = member.userId || member.email;
+  //             console.log("Removing member with identifier:", identifier);
+
+  //             await api(`/teams/${teamId}/members/${identifier}`, token, {
+  //               method: "DELETE",
+  //             });
+
+  //             // Optimistic update
+  //             setTeam((prev) =>
+  //               prev
+  //                 ? {
+  //                     ...prev,
+  //                     members: prev.members.filter(
+  //                       (m) => (m.userId || m.email) !== identifier
+  //                     ),
+  //                   }
+  //                 : null
+  //             );
+
+  //             Toast.show({ type: "success", text1: "Member removed" });
+  //           } catch (err: any) {
+  //             Toast.show({
+  //               type: "error",
+  //               text1: "Failed to remove",
+  //               text2: err.message,
+  //             });
+  //           }
+  //         },
+  //       },
+  //     ]
+  //   );
+  // };
+
+  const confirmRemoveMember = (member: {
+  userId: string;
+  name?: string;
+  email?: string;
+}) => {
+  if (!member.userId) {
+    Alert.alert(
+      "Pending invite",
+      "You can only remove active members. Pending invites must be revoked separately."
+    );
+    return;
+  }
+
+  Alert.alert(
+    "Remove Member",
+    `Remove ${member.name || member.email} from ${team?.name}?`,
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await getToken();
+
+            const res = await api(
+              `/teams/${teamId}/members/${member.userId}`,
+              token,
+              { method: "DELETE" }
+            );
+
+            if (!res.success) {
+              throw new Error(res.error || "Failed to remove member");
+            }
+
+            // Optimistic update
+            setTeam((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    members: prev.members.filter(
+                      (m) => m.userId !== member.userId
+                    ),
+                  }
+                : null
+            );
+
+            Toast.show({
+              type: "success",
+              text1: "Member removed",
+            });
+          } catch (err: any) {
+            Toast.show({
+              type: "error",
+              text1: "Failed to remove member",
+              text2: err.message,
+            });
+          }
+        },
+      },
+    ]
+  );
+};
+
 
   if (loading) {
     return (
@@ -214,7 +374,7 @@ export default function TeamDetailsScreen() {
           </View>
 
           {/* Members List */}
-          <Text className="text-white text-xl font-bold mb-4">
+          {/* <Text className="text-white text-xl font-bold mb-4">
             Team Members
           </Text>
           <View className="space-y-4 mb-10">
@@ -249,7 +409,144 @@ export default function TeamDetailsScreen() {
                 </View>
               </View>
             ))}
+          </View> */}
+
+          {/* Team Members Section */}
+          <View className="mt-8 bg-slate-800/40 mb-5 border border-slate-700 rounded-2xl p-5">
+            <View className="flex-row justify-between items-center mb-5">
+              <Text className="text-white text-xl font-black tracking-tight">
+                Team Members ({team.members.length})
+              </Text>
+
+              {isAdmin && (
+                <TouchableOpacity
+                  onPress={() => setShowAddMemberModal(true)}
+                  className="bg-blue-600/80 px-5 py-2.5 rounded-xl flex-row items-center shadow-lg shadow-blue-600/30"
+                >
+                  <Ionicons name="person-add" size={18} color="white" />
+                  <Text className="text-white font-bold ml-2 text-sm uppercase tracking-wider">
+                    Add
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {team.members.length === 0 ? (
+              <View className="py-10 items-center">
+                <Ionicons name="people-outline" size={48} color="#475569" />
+                <Text className="text-slate-400 mt-4 text-center">
+                  No members yet. Add your first team member!
+                </Text>
+              </View>
+            ) : (
+              <View className="space-y-4">
+                {team.members.map((member) => (
+                  <View
+                    key={member.userId || member.email}
+                    className="flex-row items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700/50"
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <View className="flex-1">
+                        <Text className="text-white font-semibold">
+                          {member.name || "Pending User"}
+                        </Text>
+                        <Text className="text-slate-400 text-sm">
+                          {member.email}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="flex-row items-center">
+                      <View
+                        className={`px-3 py-1 rounded-full mr-3 ${
+                          member.role === "admin"
+                            ? "bg-purple-600/30 border border-purple-500/30"
+                            : "bg-slate-600/30 border border-slate-500/30"
+                        }`}
+                      >
+                        <Text className="text-xs font-bold uppercase tracking-wider text-purple-200">
+                          {member.role}
+                        </Text>
+                      </View>
+
+                      {isAdmin && member.userId !== user?.id && (
+                        <TouchableOpacity
+                          onPress={() => confirmRemoveMember(member)}
+                          className="p-2"
+                        >
+                          <Ionicons
+                            name="person-remove-outline"
+                            size={20}
+                            color="#ef4444"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
+
+          {/* Add Member Modal */}
+          <Modal
+            visible={showAddMemberModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowAddMemberModal(false)}
+          >
+            <View className="flex-1 justify-center items-center bg-black/70">
+              <View className="bg-slate-900 rounded-3xl p-6 w-[92%] max-w-md border border-slate-700">
+                <Text className="text-white text-2xl font-black mb-2">
+                  Add Team Member
+                </Text>
+                <Text className="text-slate-400 mb-6">
+                  Enter email. Existing users join instantly, new users receive
+                  an invite.
+                </Text>
+
+                <TextInput
+                  placeholder="colleague@example.com"
+                  value={newMemberEmail}
+                  onChangeText={setNewMemberEmail}
+                  className="bg-slate-800/70 rounded-2xl px-5 py-4 text-white border border-slate-700 mb-6"
+                  placeholderTextColor="#64748b"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                <View className="flex-row justify-end gap-5 space-x-4">
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowAddMemberModal(false);
+                      setNewMemberEmail("");
+                    }}
+                    className="px-6 py-3 bg-slate-800 rounded-xl"
+                  >
+                    <Text className="text-slate-300 font-medium">Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleAddMember}
+                    disabled={addingMember || !newMemberEmail.trim()}
+                    className={`px-6 py-3 rounded-xl flex-row items-center ${
+                      newMemberEmail.trim() ? "bg-blue-600" : "bg-blue-600/50"
+                    }`}
+                  >
+                    {addingMember && (
+                      <ActivityIndicator
+                        size="small"
+                        color="white"
+                        className="mr-2"
+                      />
+                    )}
+                    <Text className="text-white font-bold">Add / Invite</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
           {/* Projects List — Added Underneath */}
           <Text className="text-white text-2xl font-bold mb-6">Projects</Text>
