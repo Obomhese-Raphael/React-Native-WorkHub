@@ -1,3 +1,4 @@
+import { clerkClient } from "@clerk/express";
 import express from "express";
 import { updateAvatar } from "../controllers/userController.js";
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
