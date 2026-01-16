@@ -6,6 +6,7 @@ import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Slot } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import "./globals.css";
 
 const PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
 

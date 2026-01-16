@@ -1,7 +1,7 @@
-import { useAuth, useSignIn } from "@clerk/clerk-expo";
+import { useAuth, useSignIn, useSSO } from "@clerk/clerk-expo";
 import { Feather, FontAwesome } from "@expo/vector-icons";
+import * as AuthSession from "expo-auth-session";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useState } from "react";
@@ -18,10 +18,27 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
-// Required for OAuth to work properly
+// Preloads the browser for Android devices to reduce authentication load time
+// See: https://docs.expo.dev/guides/authentication/#improving-user-experience
+export const useWarmUpBrowser = () => {
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    void WebBrowser.warmUpAsync();
+    return () => {
+      // Cleanup: closes browser when component unmounts
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
+
+// Handle any pending authentication sessions
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
+  useWarmUpBrowser();
+
+  // Use the `useSSO()` hook to access the `startSSOFlow()` method
+  const { startSSOFlow } = useSSO();
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const { isSignedIn } = useAuth();
@@ -63,22 +80,32 @@ export default function SignInScreen() {
 
     setGoogleLoading(true);
     try {
-      const redirectUrl = Linking.createURL("/");
+      // Start the authentication process by calling `startSSOFlow()`
+      const { createdSessionId, setActive, signIn, signUp } =
+        await startSSOFlow({
+          strategy: "oauth_google",
+          redirectUrl: AuthSession.makeRedirectUri(),
+        });
 
-      await signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl,
-        redirectUrlComplete: redirectUrl,
-      });
-    } catch (err: any) {
-      console.error("OAuth error:", err);
-      Toast.show({
-        type: "error",
-        text1: "Authentication Failed",
-        text2: err?.errors?.[0]?.message || "Could not sign in with Google",
-        visibilityTime: 5000,
-      });
-      setGoogleLoading(false);
+      // If sign in was successful, set the active session
+      if (createdSessionId) {
+        setActive!({
+          session: createdSessionId,
+          navigate: async ({ session }) => {
+            if (session?.currentTask) {
+              console.log(session?.currentTask);
+              router.push("/");
+              return;
+            }
+
+            router.push("/");
+          },
+        });
+      } else {
+        console.log("Additional steps required:", { signIn, signUp });
+      }
+    } catch (err) {
+      console.error(JSON.stringify(err, null, 2));
     }
   }, [isLoaded, signIn]);
 
@@ -96,7 +123,7 @@ export default function SignInScreen() {
       <SafeAreaView className="flex-1">
         <KeyboardAvoidingView
           className="flex-1"
-          behavior={Platform.OS === "android" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
             contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
