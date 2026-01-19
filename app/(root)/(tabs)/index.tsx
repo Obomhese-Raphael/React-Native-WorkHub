@@ -7,11 +7,12 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -29,6 +30,7 @@ type Team = {
 };
 
 type Project = {
+  activeTaskCount: ReactNode;
   _id: string;
   name: string;
   teamId: string;
@@ -42,6 +44,15 @@ type TaskSummary = {
   overdue: number;
   upcoming: number;
   reminders: number;
+};
+
+type SearchResult = {
+  type: "team" | "project" | "task";
+  _id: string;
+  id?: string;
+  name: string;
+  description?: string;
+  status?: string;
 };
 
 // --- Main Component ---
@@ -64,6 +75,10 @@ export default function HomeScreen() {
     reminders: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // Set greeting based on time of day
   useEffect(() => {
@@ -84,88 +99,6 @@ export default function HomeScreen() {
   };
 
   // --- Logic: Fetch Data ---
-  // const fetchHomeData = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const token = await getToken();
-  //     if (!token) throw new Error("Not authenticated");
-
-  //     // 1. Fetch user's teams
-  //     const teamsRes = await api("/teams", token);
-  //     const userTeams = teamsRes.data || [];
-  //     setTeams(userTeams);
-
-  //     // 2. Collect ALL projects across teams + calculate real metrics
-  //     const allProjects: Project[] = [];
-  //     let totalTodo = 0;
-  //     let totalInProgress = 0;
-  //     let totalDone = 0;
-  //     let totalOverdue = 0;
-
-  //     for (const team of userTeams) {
-  //       try {
-  //         const projectsRes = await api(`/projects/team/${team._id}`, token);
-  //         const teamProjects = projectsRes.data || [];
-
-  //         allProjects.push(...teamProjects); // ← Collect projects here
-
-  //         for (const project of teamProjects) {
-  //           try {
-  //             const tasksRes = await api(`/tasks/${project._id}/tasks`, token);
-  //             const tasks = tasksRes.data || [];
-
-  //             tasks.forEach((task: any) => {
-  //               if (!task.isActive) return;
-
-  //               switch (task.status) {
-  //                 case "todo":
-  //                   totalTodo++;
-  //                   break;
-  //                 case "in-progress":
-  //                   totalInProgress++;
-  //                   break;
-  //                 case "done":
-  //                   totalDone++;
-  //                   break;
-  //               }
-
-  //               if (
-  //                 task.dueDate &&
-  //                 new Date(task.dueDate) < new Date() &&
-  //                 task.status !== "done"
-  //               ) {
-  //                 totalOverdue++;
-  //               }
-  //             });
-  //           } catch (taskErr) {
-  //             console.warn(`Failed tasks for project ${project._id}:`, taskErr);
-  //           }
-  //         }
-  //       } catch (projectErr) {
-  //         console.warn(`Failed projects for team ${team.name}:`, projectErr);
-  //       }
-  //     }
-
-  //     // IMPORTANT: Now update the projects state!
-  //     setProjects(allProjects);
-
-  //     // Update real metrics
-  //     setTaskSummary({
-  //       todo: totalTodo,
-  //       inProgress: totalInProgress,
-  //       done: totalDone,
-  //       overdue: totalOverdue,
-  //       upcoming: 0, // Add later if needed
-  //       reminders: 0,
-  //     });
-  //   } catch (error: any) {
-  //     console.error("Home Data Fetch Error:", error);
-  //     Alert.alert("Sync Error", "Failed to load dashboard data");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const fetchHomeData = async () => {
     try {
       setLoading(true);
@@ -177,74 +110,18 @@ export default function HomeScreen() {
       const userTeams: Team[] = teamsRes.data || [];
       setTeams(userTeams);
 
-      // 2. Collect all projects + calculate real metrics
+      // 2. Collect all projects
       const allProjects: Project[] = [];
       let totalTodo = 0;
       let totalInProgress = 0;
       let totalDone = 0;
       let totalOverdue = 0;
 
-      console.log(`Fetching data for ${userTeams.length} teams...`);
-
       for (const team of userTeams) {
         try {
-          console.log(
-            `→ Loading projects for team: ${team.name} (${team._id})`
-          );
-
-          // Get projects for this team
           const projectsRes = await api(`/projects/team/${team._id}`, token);
           const teamProjects = projectsRes.data || [];
-
-          console.log(`   Found ${teamProjects.length} projects`);
-
           allProjects.push(...teamProjects);
-
-          // Process tasks for each project
-          for (const project of teamProjects) {
-            try {
-              console.log(
-                `   → Fetching tasks for project: ${project.name} (${project._id})`
-              );
-
-              const tasksRes = await api(`/tasks/${project._id}/tasks`, token);
-              const tasks = tasksRes.data || [];
-
-              console.log(`      ${tasks.length} tasks found`);
-
-              tasks.forEach((task: any) => {
-                // Skip inactive/archived tasks
-                if (!task.isActive) return;
-
-                // Count by status
-                switch (task.status?.toLowerCase()) {
-                  case "todo":
-                    totalTodo++;
-                    break;
-                  case "in-progress":
-                    totalInProgress++;
-                    break;
-                  case "done":
-                    totalDone++;
-                    break;
-                }
-
-                // Overdue: due date passed + not done
-                if (
-                  task.dueDate &&
-                  new Date(task.dueDate) < new Date() &&
-                  task.status?.toLowerCase() !== "done"
-                ) {
-                  totalOverdue++;
-                }
-              });
-            } catch (taskErr: any) {
-              console.warn(
-                `      Failed to load tasks for project ${project._id}:`,
-                taskErr.message
-              );
-            }
-          }
         } catch (projectErr: any) {
           console.warn(
             `Failed to load projects for team ${team.name}:`,
@@ -253,16 +130,53 @@ export default function HomeScreen() {
         }
       }
 
-      // 3. Update states with real data
-      setProjects(allProjects);
+      // 3. Fetch active task counts for each project
+      const projectsWithTaskCounts = await Promise.all(
+        allProjects.map(async (project: any) => {
+          try {
+            const tasksRes = await api(`/tasks/${project._id}/tasks`, token);
+            const tasks = tasksRes.data || [];
+            const activeTaskCount = tasks.filter((t: any) => t.isActive).length;
 
+            // Also count for metrics while we're here
+            tasks.forEach((task: any) => {
+              if (!task.isActive) return;
+              switch (task.status?.toLowerCase()) {
+                case "todo":
+                  totalTodo++;
+                  break;
+                case "in-progress":
+                  totalInProgress++;
+                  break;
+                case "done":
+                  totalDone++;
+                  break;
+              }
+              if (
+                task.dueDate &&
+                new Date(task.dueDate) < new Date() &&
+                task.status?.toLowerCase() !== "done"
+              ) {
+                totalOverdue++;
+              }
+            });
+
+            return { ...project, activeTaskCount };
+          } catch {
+            return { ...project, activeTaskCount: 0 };
+          }
+        })
+      );
+
+      // 4. Update states
+      setProjects(projectsWithTaskCounts);
       setTaskSummary({
         todo: totalTodo,
         inProgress: totalInProgress,
         done: totalDone,
         overdue: totalOverdue,
-        upcoming: 0, // Can be calculated later (due in next 7 days)
-        reminders: 0, // Can be added when reminder field exists
+        upcoming: 0,
+        reminders: 0,
       });
 
       console.log("Dashboard metrics updated:", {
@@ -270,7 +184,7 @@ export default function HomeScreen() {
         inProgress: totalInProgress,
         done: totalDone,
         overdue: totalOverdue,
-        totalProjects: allProjects.length,
+        totalProjects: projectsWithTaskCounts.length,
       });
     } catch (error: any) {
       console.error("Home Data Fetch Error:", error.message || error);
@@ -280,6 +194,88 @@ export default function HomeScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add search function
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setSearchLoading(true);
+    try {
+      const token = await getToken();
+      const results: SearchResult[] = [];
+
+      // Search projects
+      try {
+        const projectRes = await api(
+          `/projects/search?name=${encodeURIComponent(searchQuery)}`,
+          token
+        );
+        const projects = projectRes.data || [];
+        results.push(
+          ...projects.map((p: any) => ({ ...p, type: "project" as const }))
+        );
+      } catch (err) {
+        console.warn("Project search failed:", err);
+      }
+
+      // Search tasks
+      try {
+        const taskRes = await api(
+          `/tasks/search?q=${encodeURIComponent(searchQuery)}`,
+          token
+        );
+        const tasks = taskRes.data || [];
+        results.push(
+          ...tasks.map((t: any) => ({
+            ...t,
+            type: "task" as const,
+            name: t.title,
+          }))
+        );
+      } catch (err) {
+        console.warn("Task search failed:", err);
+      }
+
+      // Search teams
+      try {
+        const teamRes = await api(
+          `/teams/search?name=${encodeURIComponent(searchQuery)}`,
+          token
+        );
+        const teams = teamRes.data || [];
+        results.push(
+          ...teams.map((t: any) => ({ ...t, type: "team" as const }))
+        );
+      } catch (err) {
+        console.warn("Team search failed:", err);
+      }
+
+      setSearchResults(results);
+      setShowSearchModal(true);
+    } catch (error: any) {
+      console.error("Search error:", error);
+      Alert.alert("Search Error", "Failed to perform search");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleResultPress = (result: SearchResult) => {
+    setShowSearchModal(false);
+    setSearchQuery("");
+
+    // Navigate based on result type
+    if (result.type === "team") {
+      router.push(`/team/${result._id}` as any);
+    } else if (result.type === "project") {
+      router.push({
+        pathname: "/projects/[projectId]", // ← Keep brackets here
+        params: { projectId: result._id }, // ← param name MUST match the [segment]
+      });
+    } else if (result.type === "task") {
+      router.push(`/tasks/${result._id}` as any);
     }
   };
 
@@ -340,17 +336,79 @@ export default function HomeScreen() {
           </View>
 
           {/* --- Search Bar & Logo Row --- */}
+          {/* --- Search Bar & Refresh Icon Row --- */}
           <View className="flex-row items-center mb-10">
             <View className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden">
-              <SearchBar placeholder="Search Ecosystem..." />
+              <SearchBar
+                placeholder="Search Ecosystem..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSearch}
+              />
             </View>
             <TouchableOpacity
               onPress={handleRefresh}
               className="ml-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-2 items-center justify-center w-14 h-14"
             >
-              <Ionicons name="refresh" size={24} color="#60a5fa" />
+              {searchLoading ? (
+                <ActivityIndicator size="small" color="#60a5fa" />
+              ) : (
+                <Ionicons name="refresh" size={24} color="#60a5fa" />
+              )}
             </TouchableOpacity>
           </View>
+
+          <Modal
+            visible={showSearchModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowSearchModal(false)}
+          >
+            <View className="flex-1 justify-end bg-black/50">
+              <View className="bg-slate-900 rounded-t-3xl p-6 max-h-[70%]">
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text className="text-white text-xl font-bold">
+                    Search Results ({searchResults.length})
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowSearchModal(false)}>
+                    <Ionicons name="close" size={24} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {searchResults.length === 0 ? (
+                    <Text className="text-slate-400 text-center py-8">
+                      No results found for "{searchQuery}"
+                    </Text>
+                  ) : (
+                    searchResults.map((result) => (
+                      <TouchableOpacity
+                        key={`${result.type}-${result._id}`}
+                        onPress={() => handleResultPress(result)}
+                        className="bg-slate-800/50 rounded-2xl p-4 mb-3 border border-slate-700"
+                      >
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-1">
+                            <Text className="text-white font-semibold">
+                              {result.name}
+                            </Text>
+                            <Text className="text-slate-400 text-sm capitalize">
+                              {result.type}{" "}
+                              {result.status && `• ${result.status}`}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={20}
+                            color="#94a3b8"
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
 
           {/* --- Teams Section --- */}
           <View className="flex-row justify-between items-center mb-5">
@@ -465,7 +523,7 @@ export default function HomeScreen() {
                   </View>
                   <View className="bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
                     <Text className="text-sky-400 text-[10px] font-black">
-                      {project.tasks?.length || 0} ACTIVE
+                      {project.activeTaskCount} ACTIVE
                     </Text>
                   </View>
                 </TouchableOpacity>
