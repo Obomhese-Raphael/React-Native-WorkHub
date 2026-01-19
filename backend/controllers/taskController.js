@@ -278,95 +278,6 @@ const enrichTaskWithClerkData = async (task) => {
 };
 
 // Add a single member/assignee to an existing task
-// export const addMemberToTask = async (req, res) => {
-//   try {
-//     const { projectId, taskId } = req.params;
-//     const { userId: assigneeUserId, role = "assignee" } = req.body;
-//     const currentUserId = req.userId;
-
-//     console.log("addMemberToTask called with:", {
-//       projectId,
-//       taskId,
-//       assigneeUserId,
-//       currentUserId,
-//     });
-
-//     // Fetch the task manually (since no requireTaskAccess middleware)
-//     const task = await taskModel.findOne({
-//       _id: taskId,
-//       projectId,
-//       isActive: true,
-//     });
-//     if (!task) {
-//       console.log("Task not found:", { taskId, projectId });
-//       return res.status(404).json({ success: false, error: "Task not found" });
-//     }
-
-//     const project = req.project; // Already set by requireProjectAccess
-//     console.log("Project permissions check for user:", currentUserId);
-//     if (!project.isUserEditorOrHigher(currentUserId)) {
-//       console.log("Permission denied: user is not editor/owner");
-//       return res.status(403).json({
-//         success: false,
-//         error: "Only project owners or editors can assign members",
-//       });
-//     }
-
-//     console.log("Checking if assignee is a project member...");
-//     const isProjectMember = project.projectMembers.some(
-//       (m) => m.userId === assigneeUserId
-//     );
-//     if (!isProjectMember) {
-//       console.log("Assignee not a project member:", assigneeUserId);
-//       return res.status(400).json({
-//         success: false,
-//         error: "User must be a member of this project first",
-//       });
-//     }
-
-//     console.log("Checking for duplicate assignment...");
-//     if (task.assignees.some((a) => a.userId === assigneeUserId)) {
-//       console.log("Duplicate assignee:", assigneeUserId);
-//       return res.status(400).json({
-//         success: false,
-//         error: "User is already assigned to this task",
-//       });
-//     }
-
-//     let name = "Unknown";
-//     let email = "no-email@workhub.app";
-//     try {
-//       const clerkUser = await getClerkUserDetails(assigneeUserId);
-//       name = clerkUser.name || name;
-//       email = clerkUser.email || email;
-//       console.log("Fetched Clerk data:", { name, email });
-//     } catch (e) {
-//       console.log("Clerk fetch failed, using fallback");
-//     }
-
-//     console.log("Adding assignee to task...");
-//     task.assignees.push({
-//       userId: assigneeUserId,
-//       name,
-//       email,
-//       assignedBy: currentUserId,
-//       assignedAt: new Date(),
-//     });
-
-//     await task.save();
-//     console.log("Task saved. Assignees after save:", task.assignees);
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Member assigned to task successfully",
-//       data: task, // Return full task for frontend refetch
-//     });
-//   } catch (error) {
-//     console.error("Error adding member to task:", error);
-//     res.status(500).json({ success: false, error: "Failed to assign member" });
-//   }
-// };
-
 export const addMemberToTask = async (req, res) => {
   try {
     const { projectId, taskId } = req.params;
@@ -471,23 +382,49 @@ export const removeMemberFromTask = async (req, res) => {
     const { projectId, taskId, userId: assigneeUserId } = req.params;
     const currentUserId = req.userId;
 
-    const task = req.task;
+    console.log("removeMemberFromTask called with:", {
+      projectId,
+      taskId,
+      assigneeUserId,
+      currentUserId,
+    });
+
+    // Fetch the task manually
+    const task = await taskModel.findOne({
+      _id: taskId,
+      projectId,
+      isActive: true,
+    });
     if (!task) {
+      console.log("Task not found:", { taskId, projectId });
       return res.status(404).json({ success: false, error: "Task not found" });
     }
 
-    const project = req.project;
-    if (!project.isUserEditorOrHigher(currentUserId)) {
+    const project = req.project; // Set by requireProjectAccess
+    console.log("Project permissions check for user:", currentUserId);
+
+    // Manual permission check
+    const currentUserMember = project.projectMembers.find(
+      (m) => m.userId === currentUserId
+    );
+    const allowedRoles = ["admin", "editor"]; // Adjust if needed
+    if (!currentUserMember || !allowedRoles.includes(currentUserMember.role)) {
+      console.log(
+        "Permission denied: user role is",
+        currentUserMember?.role || "not found"
+      );
       return res.status(403).json({
         success: false,
         error: "Only project owners or editors can remove assignees",
       });
     }
 
+    console.log("Checking if assignee is on the task...");
     const initialLength = task.assignees.length;
     task.assignees = task.assignees.filter((a) => a.userId !== assigneeUserId);
 
     if (task.assignees.length === initialLength) {
+      console.log("Assignee not found on task:", assigneeUserId);
       return res.status(404).json({
         success: false,
         error: "Assignee not found on this task",
@@ -495,11 +432,12 @@ export const removeMemberFromTask = async (req, res) => {
     }
 
     await task.save();
+    console.log("Task saved. Assignees after removal:", task.assignees);
 
     res.json({
       success: true,
       message: "Assignee removed from task",
-      data: task.assignees,
+      data: task, // Return full task for frontend refetch
     });
   } catch (error) {
     console.error("Error removing member from task:", error);
