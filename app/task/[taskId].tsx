@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -10,6 +10,7 @@ import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   ScrollView,
   Text,
@@ -17,6 +18,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 type TaskDetail = {
   _id: string;
@@ -51,25 +53,112 @@ export default function TaskDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showAssigneeModal, setShowAssigneeModal] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]); // { userId, name, email }
+  const [addingAssignee, setAddingAssignee] = useState(false);
+
+  // const fetchTask = useCallback(async () => {
+  //   if (!taskId || !projectId) {
+  //     setLoading(false);
+  //     return;
+  //   }
+  //   try {
+  //     const token = await getToken();
+  //     // console.log(
+  //     //   "Token from getToken():",
+  //     //   token ? "Valid token" : "NULL/UNDEFINED TOKEN"
+  //     // );
+
+  //     if (!token) {
+  //       throw new Error("No auth token available");
+  //     }
+  //     const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
+  //     // console.log("Fetched task data:", res.data);
+  //     setTask(res.data);
+
+  //     // Team Members Fetch
+  //     const projectIdFromTask = res.data.projectId?._id;
+  //     if (projectIdFromTask) {
+  //       try {
+  //         // Fetch project to get teamId
+  //         const projectRes = await api(`/projects/${projectIdFromTask}`, token);
+  //         const teamId = projectRes.data?.teamId;
+
+  //         if (teamId) {
+  //           // console.log(
+  //           //   "Fetching team members with token:",
+  //           //   token.substring(0, 20) + "..."
+  //           // );
+  //           // Fetch team members (your /teams/:id endpoint)
+  //           const teamRes = await api(`/teams/${teamId}`, token);
+  //           setTeamMembers(teamRes.data?.members || []);
+  //         }
+  //       } catch (err) {
+  //         console.log("Failed to load team members for assignee picker", err);
+  //       }
+  //     }
+  //   } catch (err) {
+  //     console.error("Authentication Issues", err);
+  //     Alert.alert(
+  //       "Authentication Issue",
+  //       "Could not load data - please sign out and sign back in, or check your internet connection."
+  //     );
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [taskId, projectId, getToken]);
+
+  // Trigger every time the user navigates back to this screen
 
   const fetchTask = useCallback(async () => {
     if (!taskId || !projectId) {
       setLoading(false);
       return;
     }
+
     try {
+      // Force fresh token with forceRefresh: true
       const token = await getToken();
+      console.log("Fresh token for fetchTask:", token ? "VALID" : "NULL");
+
+      if (!token) {
+        Alert.alert("Session Expired", "Please sign in again to continue.");
+        return;
+      }
+
       const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
+      console.log("Fetched task data in fetchTask:", res.data);
       setTask(res.data);
-    } catch (err) {
-      console.error("Failed to load task", err);
-      Alert.alert("Error", "Could not load task details");
+
+      // Team fetch with same fresh token
+      const projectIdFromTask = res.data.projectId?._id;
+      if (projectIdFromTask) {
+        const projectRes = await api(`/projects/${projectIdFromTask}`, token);
+        const teamId = projectRes.data?.teamId;
+
+        if (teamId) {
+          const teamRes = await api(`/teams/${teamId}`, token);
+          setTeamMembers(teamRes.data?.members || []);
+        }
+      }
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      if (
+        err.message.includes("authentication") ||
+        err.message.includes("401")
+      ) {
+        Alert.alert(
+          "Session Issue",
+          "Authentication failed - try signing out/in."
+        );
+      } else {
+        Alert.alert("Error", "Could not load task data");
+      }
     } finally {
       setLoading(false);
     }
-  }, [taskId, projectId, getToken]);
+  }, [taskId, projectId]);
 
-  // Trigger every time the user navigates back to this screen
   useFocusEffect(
     useCallback(() => {
       fetchTask();
@@ -163,6 +252,77 @@ export default function TaskDetailScreen() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleAssignMember = async (member: { userId: any }) => {
+    console.log("Assigning member:", member);
+    if (!task || addingAssignee) return;
+
+    setAddingAssignee(true);
+
+    try {
+      const token = await getToken();
+      const res = await api(
+        `/tasks/${projectId}/tasks/${taskId}/assignees`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            userId: member.userId,
+            // email/name optional — backend can resolve
+          }),
+        }
+      );
+      console.log("Assign member response:", res.data);
+
+      if (res.success) {
+        console.log("Assign successful, refetching task...");
+        // Refresh task
+        fetchTask();
+        console.log("Task after refetch:", task); // Log the updated task
+        Toast.show({ type: "success", text1: "Assignee added" });
+        setShowAssigneeModal(false);
+      } else {
+        console.log("Assign failed with response:", res);
+      }
+    } catch (err: any) {
+      console.error("Error assigning member:", err);
+      Toast.show({
+        type: "error",
+        text1: "Failed to assign",
+        text2: err.message || "Try again",
+      });
+    } finally {
+      setAddingAssignee(false);
+    }
+  };
+
+  const confirmRemoveAssignee = (assignee: {
+    userId: any;
+    name: any;
+    email?: string;
+  }) => {
+    Alert.alert("Remove Assignee", `Remove ${assignee.name} from this task?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            await api(
+              `/tasks/${projectId}/tasks/${taskId}/assignees/${assignee.userId}`,
+              token,
+              { method: "DELETE" }
+            );
+            fetchTask(); // refresh
+            Toast.show({ type: "success", text1: "Assignee removed" });
+          } catch (err) {
+            Toast.show({ type: "error", text1: "Failed to remove" });
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -355,6 +515,58 @@ export default function TaskDetailScreen() {
             )}
           </View>
 
+          {/* Assignees Section */}
+          <View className="mb-8">
+            <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-slate-400 text-base font-medium">
+                Assignees
+              </Text>
+
+              {/* Show add button only if user can edit task/project */}
+              <TouchableOpacity
+                onPress={() => setShowAssigneeModal(true)}
+                className="bg-blue-600/30 px-4 py-1.5 rounded-full flex-row items-center"
+              >
+                <Ionicons name="person-add-outline" size={16} color="#60a5fa" />
+                <Text className="text-blue-400 text-sm font-medium ml-2">
+                  Add
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {task.assignees?.length === 0 ? (
+              <Text className="text-slate-500 italic text-center py-4">
+                No assignees yet — add team members
+              </Text>
+            ) : (
+              <View className="flex-row flex-wrap gap-3">
+                {task.assignees.map((a) => (
+                  <View
+                    key={a.userId}
+                    className="flex-row items-center bg-slate-800/60 px-4 py-2 rounded-full border border-slate-700"
+                  >
+                    <View className="w-8 h-8 rounded-full bg-indigo-600/40 items-center justify-center mr-2">
+                      <Text className="text-indigo-300 text-sm font-bold">
+                        {a.name?.charAt(0)?.toUpperCase() || "?"}
+                      </Text>
+                    </View>
+                    <Text className="text-white text-sm font-medium">
+                      {a.name}
+                    </Text>
+
+                    {/* Remove button - only if user can edit */}
+                    <TouchableOpacity
+                      onPress={() => confirmRemoveAssignee(a)}
+                      className="ml-2 p-1"
+                    >
+                      <Ionicons name="close" size={16} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
           {/* Quick Actions */}
           <View className="flex-row flex-wrap gap-4 pb-20">
             {task.status !== "in-progress" && (
@@ -377,6 +589,64 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          <Modal
+            visible={showAssigneeModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowAssigneeModal(false)}
+          >
+            <View className="flex-1 justify-center items-center bg-black/70">
+              <View className="bg-slate-900 rounded-3xl p-6 w-[92%] max-w-md border border-slate-700">
+                <Text className="text-white text-2xl font-black mb-2">
+                  Assign Team Member
+                </Text>
+                <Text className="text-slate-400 mb-6">
+                  Select from team members
+                </Text>
+
+                {teamMembers.length === 0 ? (
+                  <View className="py-8 items-center">
+                    <ActivityIndicator size="small" color="#60a5fa" />
+                    <Text className="text-slate-500 mt-4">
+                      Loading team members...
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView className="max-h-80">
+                    {teamMembers.map((m) => (
+                      <TouchableOpacity
+                        key={m.userId}
+                        onPress={() => handleAssignMember(m)}
+                        className="flex-row items-center py-4 border-b border-slate-800 last:border-b-0"
+                      >
+                        <View className="w-10 h-10 rounded-full bg-indigo-600/30 items-center justify-center mr-3">
+                          <Text className="text-indigo-300 font-bold">
+                            {(m.name?.[0] || "?").toUpperCase()}
+                          </Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-white font-medium">
+                            {m.name}
+                          </Text>
+                          <Text className="text-slate-400 text-sm">
+                            {m.email}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => setShowAssigneeModal(false)}
+                  className="mt-6 py-3 bg-slate-800 rounded-2xl items-center"
+                >
+                  <Text className="text-slate-300 font-medium">Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>

@@ -284,35 +284,49 @@ export const addMemberToTask = async (req, res) => {
     const { userId: assigneeUserId, role = "assignee" } = req.body; // role optional
     const currentUserId = req.userId;
 
+    console.log("Add member to task:", {
+      projectId,
+      taskId,
+      assigneeUserId,
+      currentUserId,
+    });
+
     // Fetch task with project populated via middleware
     const task = req.task; // assume requireTaskAccess middleware populates it
     if (!task) {
+      console.log("Task not found in request");
       return res.status(404).json({ success: false, error: "Task not found" });
     }
 
     const project = req.project; // from requireProjectAccess
+    console.log("Project permissions check for user:", currentUserId);
 
     // Permission: only editors/owners of the project can assign
     if (!project.isUserEditorOrHigher(currentUserId)) {
+      console.log("User lacks permission to assign members");
       return res.status(403).json({
         success: false,
         error: "Only project owners or editors can assign members",
       });
     }
 
+    console.log("Checking if assignee is a project member...");
     // Validate assignee is in project members
     const isProjectMember = project.projectMembers.some(
       (m) => m.userId === assigneeUserId
     );
     if (!isProjectMember) {
+      console.log("Assignee is not a member of the project: ", assigneeUserId);
       return res.status(400).json({
         success: false,
         error: "User must be a member of this project first",
       });
     }
 
+    console.log("Checking for duplicate assignment...");
     // Prevent duplicate assignment
     if (task.assignees.some((a) => a.userId === assigneeUserId)) {
+      console.log("Duplicate assignee: ", assigneeUserId);
       return res.status(400).json({
         success: false,
         error: "User is already assigned to this task",
@@ -326,10 +340,13 @@ export const addMemberToTask = async (req, res) => {
       const clerkUser = await getClerkUserDetails(assigneeUserId);
       name = clerkUser.name || name;
       email = clerkUser.email || email;
+      console.log("Fetched Clerk Data for assignee:", { name, email });
     } catch (e) {
       // silent fail - use fallback
+      console.log("Failed to fetch Clerk data for assignee:", e);
     }
 
+    console.log("Assigning member to task...");
     // Add to assignees array
     task.assignees.push({
       userId: assigneeUserId,
@@ -340,11 +357,12 @@ export const addMemberToTask = async (req, res) => {
     });
 
     await task.save();
+    console.log("Task saved. Assignees after save:", task.assignees);
 
     res.status(200).json({
       success: true,
       message: "Member assigned to task successfully",
-      data: task.assignees,
+      data: task,
     });
   } catch (error) {
     console.error("Error adding member to task:", error);
