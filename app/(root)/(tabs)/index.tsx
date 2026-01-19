@@ -179,13 +179,6 @@ export default function HomeScreen() {
         reminders: 0,
       });
 
-      console.log("Dashboard metrics updated:", {
-        todo: totalTodo,
-        inProgress: totalInProgress,
-        done: totalDone,
-        overdue: totalOverdue,
-        totalProjects: projectsWithTaskCounts.length,
-      });
     } catch (error: any) {
       console.error("Home Data Fetch Error:", error.message || error);
       Alert.alert(

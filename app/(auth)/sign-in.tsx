@@ -93,7 +93,6 @@ export default function SignInScreen() {
           session: createdSessionId,
           navigate: async ({ session }) => {
             if (session?.currentTask) {
-              console.log(session?.currentTask);
               router.push("/");
               return;
             }

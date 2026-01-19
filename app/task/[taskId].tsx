@@ -119,7 +119,6 @@ export default function TaskDetailScreen() {
     try {
       // Force fresh token with forceRefresh: true
       const token = await getToken();
-      console.log("Fresh token for fetchTask:", token ? "VALID" : "NULL");
 
       if (!token) {
         Alert.alert("Session Expired", "Please sign in again to continue.");
@@ -127,7 +126,6 @@ export default function TaskDetailScreen() {
       }
 
       const res = await api(`/tasks/${projectId}/tasks/${taskId}`, token);
-      console.log("Fetched task data in fetchTask:", res.data);
       setTask(res.data);
 
       // Team fetch with same fresh token
@@ -273,13 +271,10 @@ export default function TaskDetailScreen() {
           }),
         }
       );
-      console.log("Assign member response:", res.data);
 
       if (res.success) {
-        console.log("Assign successful, refetching task...");
         // Refresh task
         fetchTask();
-        console.log("Task after refetch:", task); // Log the updated task
         Toast.show({ type: "success", text1: "Assignee added" });
         setShowAssigneeModal(false);
       } else {

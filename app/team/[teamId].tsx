@@ -69,11 +69,8 @@ export default function TeamDetailsScreen() {
         throw new Error("Authentication token missing");
       }
 
-      console.log("Fetching projects for team:", teamId);
-
       // Fetch all projects for this team
       const projectsRes = await api(`/projects/team/${teamId}`, token);
-      console.log("Projects endpoint response:", projectsRes);
 
       const projects = projectsRes.data || [];
 
@@ -81,16 +78,8 @@ export default function TeamDetailsScreen() {
       const projectsWithTaskCounts = await Promise.all(
         projects.map(async (project: any) => {
           try {
-            console.log(
-              `Fetching tasks for project: ${project._id} (${project.name})`
-            );
 
             const tasksRes = await api(`/tasks/${project._id}/tasks`, token); // Fixed endpoint
-            console.log(`Tasks response for ${project._id}:`, {
-              status: "success",
-              taskCount: tasksRes.data?.length || 0,
-              dataPreview: tasksRes.data?.slice(0, 2), // first 2 tasks only (for debug)
-            });
 
             const tasks = tasksRes.data || [];
             const activeTaskCount = tasks.filter((t: any) => t.isActive).length;
@@ -110,9 +99,7 @@ export default function TeamDetailsScreen() {
       );
 
       // Fetch full team details
-      console.log("Fetching full team details:", teamId);
       const teamRes = await api(`/teams/${teamId}`, token);
-      console.log("Team response:", teamRes);
 
       const isAdmin = teamRes.data.isAdmin === true;
       setIsAdmin(isAdmin);
