@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/express";
 import express from "express";
+import { registerPushToken } from "../controllers/notificationController.js";
 import { requestPasswordReset, updateAvatar } from "../controllers/userController.js";
 import { getUserInfo, requireAuth } from "../middleware/auth.js";
 
@@ -86,5 +87,7 @@ userRouter.get('/notifications', requireAuth, getUserInfo, async (req, res) => {
 });
 
 userRouter.post("/password-reset", requireAuth, getUserInfo, requestPasswordReset);
+
+userRouter.post("/register-push-token", requireAuth, getUserInfo, registerPushToken);
 
 export default userRouter;
