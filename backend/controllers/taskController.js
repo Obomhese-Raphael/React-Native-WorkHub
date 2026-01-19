@@ -5,6 +5,138 @@ import teamModel from "../models/Team.js";
 import { getClerkUserDetails } from "../utils/clerkUser.js";
 
 // Create a new task - Done ✅
+// export const createTask = async (req, res) => {
+//   try {
+//     let {
+//       title,
+//       description,
+//       status,
+//       dueDate,
+//       priority,
+//       assignees = [],
+//     } = req.body;
+
+//     const userId = req.userId;
+//     const project = req.project; // From requireProjectAccess middleware (populated with projectMembers)
+
+//     // Auto-assign creator if no assignees provided
+//     if (assignees.length === 0) {
+//       assignees = [{ userId }];
+//     }
+
+//     if (!title?.trim()) {
+//       return res
+//         .status(400)
+//         .json({ success: false, error: "Task title is required" });
+//     }
+
+//     // Build lookup maps for fast validation/resolution
+//     const memberByUserId = new Map();
+//     const memberByEmail = new Map();
+
+//     project.projectMembers.forEach((m) => {
+//       if (m.userId) memberByUserId.set(m.userId, m);
+//       if (m.email && m.email !== "no-email@workhub.app") {
+//         memberByEmail.set(m.email.toLowerCase(), m);
+//       }
+//     });
+
+//     // Validate assignees (support userId OR email)
+//     for (const assignee of assignees) {
+//       let found = false;
+
+//       if (assignee.userId) {
+//         found = memberByUserId.has(assignee.userId);
+//       } else if (assignee.email) {
+//         found = memberByEmail.has(assignee.email.toLowerCase());
+//       } else {
+//         return res.status(400).json({
+//           success: false,
+//           error: "Each assignee must provide either 'userId' or 'email'",
+//         });
+//       }
+
+//       if (!found) {
+//         const id = assignee.userId || assignee.email;
+//         return res.status(400).json({
+//           success: false,
+//           error: `User '${id}' is not a member of this project`,
+//         });
+//       }
+//     }
+
+//     // Calculate next order
+//     const highestOrderTask = await taskModel
+//       .findOne({ projectId: project._id, isActive: true })
+//       .sort({ order: -1 })
+//       .select("order");
+
+//     const newOrder = highestOrderTask ? highestOrderTask.order + 1 : 0;
+
+//     // Resolve assignee details (Clerk > stored member data > fallback)
+//     const resolvedAssignees = await Promise.all(
+//       assignees.map(async (a) => {
+//         let member = null;
+//         let clerkData = null;
+
+//         // Try userId first (most reliable)
+//         if (a.userId && memberByUserId.has(a.userId)) {
+//           member = memberByUserId.get(a.userId);
+//           clerkData = await getClerkUserDetails(a.userId); // your Clerk helper
+//         }
+//         // Then email
+//         else if (a.email && memberByEmail.has(a.email.toLowerCase())) {
+//           member = memberByEmail.get(a.email.toLowerCase());
+//           if (member.userId) {
+//             clerkData = await getClerkUserDetails(member.userId);
+//           }
+//         }
+
+//         const name = clerkData?.name || member?.name || "Unknown User";
+//         const email =
+//           clerkData?.email ||
+//           member?.email ||
+//           a.email?.toLowerCase() ||
+//           "no-email@workhub.app";
+
+//         return {
+//           userId: member?.userId || null,
+//           email,
+//           name,
+//           assignedBy: userId,
+//           assignedAt: new Date(),
+//         };
+//       })
+//     );
+
+//     const newTask = await taskModel.create({
+//       projectId: project._id,
+//       title: title.trim(),
+//       description: description?.trim() || "",
+//       status: status || "todo",
+//       dueDate: dueDate || null,
+//       priority: priority || "medium",
+//       assignees: resolvedAssignees,
+//       order: newOrder,
+//       createdBy: userId,
+//       isActive: true,
+//     });
+
+//     // Optional: Push to project.tasks array
+//     project.tasks.push(newTask._id);
+//     await project.save();
+
+//     res.status(201).json({
+//       success: true,
+//       data: newTask,
+//       message: "Task created and assigned successfully",
+//     });
+//   } catch (error) {
+//     console.error("Error creating task:", error);
+//     res.status(500).json({ success: false, error: "Failed to create task" });
+//   }
+// };
+
 export const createTask = async (req, res) => {
   try {
     let {
@@ -122,9 +254,8 @@ export const createTask = async (req, res) => {
       isActive: true,
     });
 
-    // Optional: Push to project.tasks array
-    project.tasks.push(newTask._id);
-    await project.save();
+    // Removed: project.tasks.push(newTask._id); await project.save();
+    // Not needed if tasks are linked via projectId
 
     res.status(201).json({
       success: true,

@@ -31,7 +31,6 @@ export default function MyWorkScreen() {
   const { getToken } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const API_BASE_URL = "https://react-native-work-hub-backend.vercel.app/api";
 
   const confirmDelete = (taskId: string) => {
     Alert.alert("Delete Task", "Move this task to trash?", [
@@ -178,7 +177,7 @@ export default function MyWorkScreen() {
                       >
                         <Feather name="archive" size={18} color="#94a3b8" />
                       </TouchableOpacity>
-                      <View className="w-[1px] h-4 bg-slate-700" />{" "}
+                      <View className="w-[1px] h-4 bg-slate-700" />
                       {/* Tiny separator */}
                       <TouchableOpacity
                         onPress={() => confirmDelete(task._id)}

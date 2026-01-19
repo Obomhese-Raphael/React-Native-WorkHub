@@ -115,7 +115,7 @@ export default function CreateTeamScreen() {
             </View>
 
             {/* --- Form Fields --- */}
-            <View className="space-y-8">
+            <View>
               {/* Name Input */}
               <View>
                 <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">
@@ -131,7 +131,7 @@ export default function CreateTeamScreen() {
               </View>
 
               {/* Description Input */}
-              <View>
+              <View className="mt-8">
                 <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1 mt-4">
                   Mission Objective (Optional)
                 </Text>
@@ -147,7 +147,7 @@ export default function CreateTeamScreen() {
               </View>
 
               {/* Color Selection */}
-              <View>
+              <View className="mt-8">
                 <Text className="text-slate-500 text-[10px] mt-4 font-black uppercase tracking-widest mb-4 ml-1">
                   Identity Accent
                 </Text>
@@ -168,7 +168,7 @@ export default function CreateTeamScreen() {
                 onPress={handleCreate}
                 disabled={loading}
                 activeOpacity={0.8}
-                className="mt-6 overflow-hidden rounded-2xl"
+                className="mt-8 overflow-hidden rounded-2xl"
               >
                 <LinearGradient
                   colors={["#4f46e5", "#3730a3"]}

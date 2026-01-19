@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateTaskScreen() {
+  const { user } = useUser();
   const { projectId, taskId } = useLocalSearchParams<{
     projectId: string;
     taskId: string;
@@ -81,66 +82,6 @@ export default function CreateTaskScreen() {
     }
   }, [taskId]);
 
-  // const handleSubmit = async () => {
-  //   if (!title.trim()) return Alert.alert("Error", "Title is required");
-  //   if (!isEditMode && !selectedProjectId) {
-  //     return Alert.alert("Error", "Please select a project");
-  //   }
-
-  //   setLoading(true);
-
-  //   try {
-  //     const token = await getToken();
-
-  //     const payload = {
-  //       title: title.trim(),
-  //       description: description.trim(),
-  //       // priority, assignees, etc. can be added later
-  //     };
-
-  //     const targetProjectId = isEditMode ? projectId : selectedProjectId;
-  //     const endpoint = isEditMode
-  //       ? `/tasks/${targetProjectId}/tasks/${taskId}` // ← FIXED URL (nested!)
-  //       : `/tasks/${targetProjectId}/tasks`; // ← FIXED URL
-
-  //     const method = isEditMode ? "PUT" : "POST";
-
-  //     console.log("Sending request to:", endpoint);
-  //     console.log("Method:", method);
-  //     console.log("Payload:", payload);
-
-  //     const response = await api(endpoint, token, {
-  //       method,
-  //       body: JSON.stringify(payload),
-  //     });
-
-  //     console.log("FULL API RESPONSE:", response); // ← this will show the truth
-
-  //     if (response?.success) {
-  //       Alert.alert(
-  //         "Success",
-  //         isEditMode
-  //           ? "Task updated successfully"
-  //           : "Task deployed successfully"
-  //       );
-  //       router.back();
-  //     } else {
-  //       throw new Error(response?.error || "Unknown backend response");
-  //     }
-  //   } catch (err: any) {
-  //     console.error("=== TASK CREATION FAILED ===");
-  //     console.error("Message:", err.message);
-  //     console.error("Full error:", err);
-
-  //     Alert.alert(
-  //       "Error",
-  //       `Failed to ${isEditMode ? "update" : "deploy"} task\n\n${err.message || "Check console"}`
-  //     );
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleSubmit = async () => {
     if (!title.trim()) return Alert.alert("Error", "Title is required");
     if (!isEditMode && !selectedProjectId) {
@@ -149,6 +90,42 @@ export default function CreateTaskScreen() {
 
     setLoading(true);
 
+    // try {
+    //   const token = await getToken();
+
+    //   const payload = {
+    //     title: title.trim(),
+    //     description: description.trim(),
+    //     priority: priority,
+    //     // ✅ ADD THIS: Explicitly send the creator as the first assignee
+    //     // This ensures the backend doesn't try to guess or fail its lookup
+    //     assignees: [{ userId: user?.id }],
+    //   };
+
+    //   const targetProjectId = isEditMode ? projectId : selectedProjectId;
+    //   const endpoint = isEditMode
+    //     ? `/tasks/${targetProjectId}/tasks/${taskId}`
+    //     : `/tasks/${targetProjectId}/tasks`;
+
+    //   const apiResponse = await api(endpoint, token, {
+    //     method: isEditMode ? "PUT" : "POST",
+    //     body: JSON.stringify(payload),
+    //   });
+
+    //   // Since your api.ts throws on !response.ok, if we reach here, it's a success
+    //   Alert.alert("Success", isEditMode ? "Task updated" : "Task deployed");
+    //   router.back();
+    // } catch (err: any) {
+    //   // The "Failed to create task" error from your backend is caught here
+    //   console.error("TASK DEPLOY FAILED:", err.message);
+    //   Alert.alert(
+    //     "Deployment Error",
+    //     err.message // This will now show the actual string from the backend
+    //   );
+    // } finally {
+    //   setLoading(false);
+    // }
+
     try {
       const token = await getToken();
 
@@ -156,6 +133,7 @@ export default function CreateTaskScreen() {
         title: title.trim(),
         description: description.trim(),
         priority: priority,
+        assignees: [{ userId: user?.id }],
       };
 
       const targetProjectId = isEditMode ? projectId : selectedProjectId;
@@ -163,32 +141,25 @@ export default function CreateTaskScreen() {
         ? `/tasks/${targetProjectId}/tasks/${taskId}`
         : `/tasks/${targetProjectId}/tasks`;
 
-      console.log("Sending to:", endpoint);
-      console.log("Payload:", payload);
-
       const apiResponse = await api(endpoint, token, {
         method: isEditMode ? "PUT" : "POST",
         body: JSON.stringify(payload),
       });
 
-      console.log("FULL API RESPONSE:", apiResponse); // ← this will now always show!
-
-      if (apiResponse.ok && apiResponse.data?.success) {
-        Alert.alert("Success", isEditMode ? "Task updated" : "Task deployed");
-        router.back();
-      } else {
-        throw new Error(apiResponse.error || `HTTP ${apiResponse.status}`);
-      }
+      Alert.alert("Success", isEditMode ? "Task updated" : "Task deployed");
+      router.back();
     } catch (err: any) {
-      console.error("TASK DEPLOY FAILED:", err.message, err);
+      console.error("TASK DEPLOY FAILED:", err.message);
+      // Optional: Check if task was created despite error (e.g., fetch tasks and see)
       Alert.alert(
-        "Error",
-        `Failed to ${isEditMode ? "update" : "deploy"} task\n${err.message}`
+        "Deployment Error",
+        err.message || "An error occurred. Check if the task was created."
       );
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <LinearGradient
       colors={["#0f172a", "#1e293b", "#0f172a"]}
@@ -227,45 +198,6 @@ export default function CreateTaskScreen() {
             </View>
 
             <View className="space-y-8 pb-10">
-              {/* Parent Project Selection - Hidden in Edit Mode */}
-              {/* {!isEditMode && (
-                <View>
-                  <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
-                    Parent Project Node
-                  </Text>
-                  <View className="flex-row flex-wrap">
-                    {projects.length === 0 ? (
-                      <View className="bg-slate-800/20 border border-dashed border-slate-700 p-4 rounded-2xl w-full">
-                        <Text className="text-slate-500 text-xs italic">
-                          No projects detected in ecosystem.
-                        </Text>
-                      </View>
-                    ) : (
-                      projects.map((proj) => (
-                        <TouchableOpacity
-                          key={proj._id}
-                          onPress={() => setSelectedProjectId(proj._id)}
-                          className={`mr-3 mb-3 px-5 py-3 rounded-2xl border ${
-                            selectedProjectId === proj._id
-                              ? "border-blue-500 bg-blue-500/10"
-                              : "border-slate-700 bg-slate-800/40"
-                          }`}
-                        >
-                          <Text
-                            className={`font-bold text-sm ${
-                              selectedProjectId === proj._id
-                                ? "text-blue-400"
-                                : "text-slate-400"
-                            }`}
-                          >
-                            {proj.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))
-                    )}
-                  </View>
-                </View>
-              )} */}
               {/* Parent Project Selection - Hidden in Edit Mode */}
               {!isEditMode && (
                 <View>
