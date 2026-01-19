@@ -281,29 +281,31 @@ const enrichTaskWithClerkData = async (task) => {
 // export const addMemberToTask = async (req, res) => {
 //   try {
 //     const { projectId, taskId } = req.params;
-//     const { userId: assigneeUserId, role = "assignee" } = req.body; // role optional
+//     const { userId: assigneeUserId, role = "assignee" } = req.body;
 //     const currentUserId = req.userId;
 
-//     console.log("Add member to task:", {
+//     console.log("addMemberToTask called with:", {
 //       projectId,
 //       taskId,
 //       assigneeUserId,
 //       currentUserId,
 //     });
 
-//     // Fetch task with project populated via middleware
-//     const task = req.task; // assume requireTaskAccess middleware populates it
+//     // Fetch the task manually (since no requireTaskAccess middleware)
+//     const task = await taskModel.findOne({
+//       _id: taskId,
+//       projectId,
+//       isActive: true,
+//     });
 //     if (!task) {
-//       console.log("Task not found in request");
+//       console.log("Task not found:", { taskId, projectId });
 //       return res.status(404).json({ success: false, error: "Task not found" });
 //     }
 
-//     const project = req.project; // from requireProjectAccess
+//     const project = req.project; // Already set by requireProjectAccess
 //     console.log("Project permissions check for user:", currentUserId);
-
-//     // Permission: only editors/owners of the project can assign
 //     if (!project.isUserEditorOrHigher(currentUserId)) {
-//       console.log("User lacks permission to assign members");
+//       console.log("Permission denied: user is not editor/owner");
 //       return res.status(403).json({
 //         success: false,
 //         error: "Only project owners or editors can assign members",
@@ -311,12 +313,11 @@ const enrichTaskWithClerkData = async (task) => {
 //     }
 
 //     console.log("Checking if assignee is a project member...");
-//     // Validate assignee is in project members
 //     const isProjectMember = project.projectMembers.some(
 //       (m) => m.userId === assigneeUserId
 //     );
 //     if (!isProjectMember) {
-//       console.log("Assignee is not a member of the project: ", assigneeUserId);
+//       console.log("Assignee not a project member:", assigneeUserId);
 //       return res.status(400).json({
 //         success: false,
 //         error: "User must be a member of this project first",
@@ -324,30 +325,26 @@ const enrichTaskWithClerkData = async (task) => {
 //     }
 
 //     console.log("Checking for duplicate assignment...");
-//     // Prevent duplicate assignment
 //     if (task.assignees.some((a) => a.userId === assigneeUserId)) {
-//       console.log("Duplicate assignee: ", assigneeUserId);
+//       console.log("Duplicate assignee:", assigneeUserId);
 //       return res.status(400).json({
 //         success: false,
 //         error: "User is already assigned to this task",
 //       });
 //     }
 
-//     // Optional: fetch fresh Clerk data
 //     let name = "Unknown";
 //     let email = "no-email@workhub.app";
 //     try {
 //       const clerkUser = await getClerkUserDetails(assigneeUserId);
 //       name = clerkUser.name || name;
 //       email = clerkUser.email || email;
-//       console.log("Fetched Clerk Data for assignee:", { name, email });
+//       console.log("Fetched Clerk data:", { name, email });
 //     } catch (e) {
-//       // silent fail - use fallback
-//       console.log("Failed to fetch Clerk data for assignee:", e);
+//       console.log("Clerk fetch failed, using fallback");
 //     }
 
-//     console.log("Assigning member to task...");
-//     // Add to assignees array
+//     console.log("Adding assignee to task...");
 //     task.assignees.push({
 //       userId: assigneeUserId,
 //       name,
@@ -362,7 +359,7 @@ const enrichTaskWithClerkData = async (task) => {
 //     res.status(200).json({
 //       success: true,
 //       message: "Member assigned to task successfully",
-//       data: task,
+//       data: task, // Return full task for frontend refetch
 //     });
 //   } catch (error) {
 //     console.error("Error adding member to task:", error);
@@ -383,7 +380,7 @@ export const addMemberToTask = async (req, res) => {
       currentUserId,
     });
 
-    // Fetch the task manually (since no requireTaskAccess middleware)
+    // Fetch the task manually
     const task = await taskModel.findOne({
       _id: taskId,
       projectId,
@@ -394,10 +391,19 @@ export const addMemberToTask = async (req, res) => {
       return res.status(404).json({ success: false, error: "Task not found" });
     }
 
-    const project = req.project; // Already set by requireProjectAccess
+    const project = req.project; // Set by requireProjectAccess
     console.log("Project permissions check for user:", currentUserId);
-    if (!project.isUserEditorOrHigher(currentUserId)) {
-      console.log("Permission denied: user is not editor/owner");
+
+    // Manual permission check: Find user in projectMembers and check role
+    const currentUserMember = project.projectMembers.find(
+      (m) => m.userId === currentUserId
+    );
+    const allowedRoles = ["admin", "editor"]; // Adjust if your roles differ
+    if (!currentUserMember || !allowedRoles.includes(currentUserMember.role)) {
+      console.log(
+        "Permission denied: user role is",
+        currentUserMember?.role || "not found"
+      );
       return res.status(403).json({
         success: false,
         error: "Only project owners or editors can assign members",
@@ -451,7 +457,7 @@ export const addMemberToTask = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Member assigned to task successfully",
-      data: task, // Return full task for frontend refetch
+      data: task,
     });
   } catch (error) {
     console.error("Error adding member to task:", error);
