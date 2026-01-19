@@ -26,7 +26,6 @@ export default function CreateTeamScreen() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Pre-defined official colors for teams
   const teamColors = [
     "#6366f1",
     "#10b981",
@@ -65,7 +64,7 @@ export default function CreateTeamScreen() {
         {
           text: "Proceed",
           onPress: () => {
-            triggerRefresh(); // ← ADD THIS
+            triggerRefresh();
             router.back();
           },
         },
@@ -91,7 +90,6 @@ export default function CreateTeamScreen() {
             className="flex-1 px-8 pt-6"
             showsVerticalScrollIndicator={false}
           >
-            {/* --- Navigation Header --- */}
             <View className="flex-row items-center justify-between mb-10">
               <TouchableOpacity
                 onPress={() => router.back()}
@@ -102,7 +100,7 @@ export default function CreateTeamScreen() {
               <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-[4px]">
                 Deployment.Manager
               </Text>
-              <View className="w-12" /> {/* Spacer for balance */}
+              <View className="w-12" />
             </View>
 
             <View className="mb-10">
@@ -114,9 +112,7 @@ export default function CreateTeamScreen() {
               </Text>
             </View>
 
-            {/* --- Form Fields --- */}
             <View>
-              {/* Name Input */}
               <View>
                 <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">
                   Team Designation
@@ -130,9 +126,8 @@ export default function CreateTeamScreen() {
                 />
               </View>
 
-              {/* Description Input */}
               <View className="mt-8">
-                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1 mt-4">
+                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-3 ml-1">
                   Mission Objective (Optional)
                 </Text>
                 <TextInput
@@ -146,9 +141,8 @@ export default function CreateTeamScreen() {
                 />
               </View>
 
-              {/* Color Selection */}
               <View className="mt-8">
-                <Text className="text-slate-500 text-[10px] mt-4 font-black uppercase tracking-widest mb-4 ml-1">
+                <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-4 ml-1">
                   Identity Accent
                 </Text>
                 <View className="flex-row justify-between">
@@ -157,13 +151,16 @@ export default function CreateTeamScreen() {
                       key={color}
                       onPress={() => setSelectedColor(color)}
                       style={{ backgroundColor: color }}
-                      className={`w-10 h-10 rounded-full border-4 ${selectedColor === color ? "border-white" : "border-transparent"}`}
+                      className={`w-10 h-10 rounded-full border-4 ${
+                        selectedColor === color
+                          ? "border-white"
+                          : "border-transparent"
+                      }`}
                     />
                   ))}
                 </View>
               </View>
 
-              {/* Action Button */}
               <TouchableOpacity
                 onPress={handleCreate}
                 disabled={loading}
@@ -174,28 +171,13 @@ export default function CreateTeamScreen() {
                   colors={["#4f46e5", "#3730a3"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={{
-                    paddingVertical: 20,
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
+                  className="py-5 flex-row justify-center items-center"
                 >
                   {loading ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <Text
-                        style={{
-                          color: "white",
-                          fontSize: 18,
-                          fontWeight: "800",
-                          textTransform: "uppercase",
-                          marginRight: 8,
-                        }}
-                      >
+                    <View className="flex-row items-center">
+                      <Text className="text-white text-lg font-black uppercase tracking-widest mr-2">
                         Initialize Team
                       </Text>
                       <Feather name="zap" size={20} color="white" />
@@ -204,8 +186,7 @@ export default function CreateTeamScreen() {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Safety Note */}
-              <Text className="text-slate-600 text-[10px] mt-10 text-center font-bold tracking-tight">
+              <Text className="text-slate-600 text-[10px] mt-10 text-center font-bold tracking-tight pb-10">
                 SECURE DATA TRANSMISSION ENCRYPTED VIA CLERK_AUTH
               </Text>
             </View>
