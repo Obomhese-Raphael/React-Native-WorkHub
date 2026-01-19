@@ -67,7 +67,7 @@ export default function TeamDetailsScreen() {
     if (!teamId) return;
     try {
       const token = await getToken();
-      console.log("Token fetched for team data:", token);
+      // console.log("Token fetched for team data:", token);
       // Use your existing endpoint that returns team + projects
       const res = await api(`/projects/team/${teamId}`, token); // This returns projects
       const projectsRes = res.data || [];
@@ -266,6 +266,21 @@ export default function TeamDetailsScreen() {
 
             if (!res.success) {
               throw new Error(res.error || "Backend rejected removal");
+            }
+
+            // Add a toast for when successful removal/leaving
+            if (res.success) {
+              console.log(
+                `${isSelf ? "Left" : "Removed"} member successfully:`,
+                res
+              );
+              Toast.show({
+                type: "success",
+                text1: isSelf ? "Left Team" : "Member Removed",
+                text2: isSelf
+                  ? `You are no longer a member of ${team?.name}`
+                  : "Access revoked successfully",
+              });
             }
 
             // 1. Update UI Optimistically

@@ -155,6 +155,7 @@ export default function CreateTaskScreen() {
       const payload = {
         title: title.trim(),
         description: description.trim(),
+        priority: priority,
       };
 
       const targetProjectId = isEditMode ? projectId : selectedProjectId;
@@ -340,6 +341,22 @@ export default function CreateTaskScreen() {
               </View>
 
               {/* Task Description (Optional) */}
+              {/* <View>
+                <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
+                  Description (Optional)
+                </Text>
+                <TextInput
+                  className="bg-slate-800/40 rounded-2xl px-6 py-5 text-white text-base border border-slate-700/50 min-h-[120px]"
+                  placeholder="Add context, requirements, or notes..."
+                  placeholderTextColor="#475569"
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View> */}
+
+              {/* Task Description (Optional) */}
               <View>
                 <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
                   Description (Optional)
@@ -354,6 +371,58 @@ export default function CreateTaskScreen() {
                   textAlignVertical="top"
                 />
               </View>
+
+              {/* ← Add the Priority Selector HERE */}
+              <View>
+                <Text className="text-slate-500 text-[10px] mt-5 font-black uppercase tracking-widest mb-3 ml-1">
+                  Priority Level
+                </Text>
+                <View className="flex-row flex-wrap gap-3">
+                  {["low", "medium", "high", "urgent"].map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      onPress={() => setPriority(level)}
+                      className={`px-5 py-3 rounded-2xl border ${
+                        priority === level
+                          ? level === "urgent"
+                            ? "border-red-500 bg-red-500/20"
+                            : level === "high"
+                              ? "border-orange-500 bg-orange-500/20"
+                              : level === "medium"
+                                ? "border-yellow-500 bg-yellow-500/20"
+                                : "border-green-500 bg-green-500/20"
+                          : "border-slate-700 bg-slate-800/40"
+                      }`}
+                    >
+                      <Text
+                        className={`font-bold uppercase text-sm ${
+                          priority === level
+                            ? level === "urgent"
+                              ? "text-red-400"
+                              : level === "high"
+                                ? "text-orange-400"
+                                : level === "medium"
+                                  ? "text-yellow-400"
+                                  : "text-green-400"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={loading}
+                activeOpacity={0.8}
+                className="mt-6 overflow-hidden rounded-2xl"
+              >
+                {/* ... your existing submit gradient ... */}
+              </TouchableOpacity>
 
               {/* Submit Button */}
               <TouchableOpacity
