@@ -1,10 +1,10 @@
 // app/(root)/(tabs)/index.tsx
 import SearchBar from "@/components/SearchBar";
 import icons from "@/constants/icons";
-import images from "@/constants/images";
 import { useRefresh } from "@/context/RefreshContext";
 import { api } from "@/lib/api";
 import { useAuth, useUser } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -81,12 +81,94 @@ export default function HomeScreen() {
     } catch (err) {
       console.error("Failed to get token:", err);
     }
-  };         
+  };
 
-  // --- Logic: Fetch Data ---  
-  const fetchHomeData = async () => {           
+  // --- Logic: Fetch Data ---
+  // const fetchHomeData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const token = await getToken();
+  //     if (!token) throw new Error("Not authenticated");
+
+  //     // 1. Fetch user's teams
+  //     const teamsRes = await api("/teams", token);
+  //     const userTeams = teamsRes.data || [];
+  //     setTeams(userTeams);
+
+  //     // 2. Collect ALL projects across teams + calculate real metrics
+  //     const allProjects: Project[] = [];
+  //     let totalTodo = 0;
+  //     let totalInProgress = 0;
+  //     let totalDone = 0;
+  //     let totalOverdue = 0;
+
+  //     for (const team of userTeams) {
+  //       try {
+  //         const projectsRes = await api(`/projects/team/${team._id}`, token);
+  //         const teamProjects = projectsRes.data || [];
+
+  //         allProjects.push(...teamProjects); // ← Collect projects here
+
+  //         for (const project of teamProjects) {
+  //           try {
+  //             const tasksRes = await api(`/tasks/${project._id}/tasks`, token);
+  //             const tasks = tasksRes.data || [];
+
+  //             tasks.forEach((task: any) => {
+  //               if (!task.isActive) return;
+
+  //               switch (task.status) {
+  //                 case "todo":
+  //                   totalTodo++;
+  //                   break;
+  //                 case "in-progress":
+  //                   totalInProgress++;
+  //                   break;
+  //                 case "done":
+  //                   totalDone++;
+  //                   break;
+  //               }
+
+  //               if (
+  //                 task.dueDate &&
+  //                 new Date(task.dueDate) < new Date() &&
+  //                 task.status !== "done"
+  //               ) {
+  //                 totalOverdue++;
+  //               }
+  //             });
+  //           } catch (taskErr) {
+  //             console.warn(`Failed tasks for project ${project._id}:`, taskErr);
+  //           }
+  //         }
+  //       } catch (projectErr) {
+  //         console.warn(`Failed projects for team ${team.name}:`, projectErr);
+  //       }
+  //     }
+
+  //     // IMPORTANT: Now update the projects state!
+  //     setProjects(allProjects);
+
+  //     // Update real metrics
+  //     setTaskSummary({
+  //       todo: totalTodo,
+  //       inProgress: totalInProgress,
+  //       done: totalDone,
+  //       overdue: totalOverdue,
+  //       upcoming: 0, // Add later if needed
+  //       reminders: 0,
+  //     });
+  //   } catch (error: any) {
+  //     console.error("Home Data Fetch Error:", error);
+  //     Alert.alert("Sync Error", "Failed to load dashboard data");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const fetchHomeData = async () => {
     try {
-      setLoading(true);  
+      setLoading(true);
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
 
@@ -95,61 +177,121 @@ export default function HomeScreen() {
       const userTeams: Team[] = teamsRes.data || [];
       setTeams(userTeams);
 
-      // 2. Prepare to collect all projects and count tasks
+      // 2. Collect all projects + calculate real metrics
       const allProjects: Project[] = [];
       let totalTodo = 0;
       let totalInProgress = 0;
-      let totalDone = 0;  
+      let totalDone = 0;
       let totalOverdue = 0;
+
+      console.log(`Fetching data for ${userTeams.length} teams...`);
 
       for (const team of userTeams) {
         try {
+          console.log(
+            `→ Loading projects for team: ${team.name} (${team._id})`
+          );
+
+          // Get projects for this team
           const projectsRes = await api(`/projects/team/${team._id}`, token);
           const teamProjects = projectsRes.data || [];
+
+          console.log(`   Found ${teamProjects.length} projects`);
+
           allProjects.push(...teamProjects);
 
-          teamProjects.forEach((project: any) => {
-            const activeTasks =
-              project.tasks?.filter((t: any) => t.isActive) || [];
-            activeTasks.forEach((task: any) => {
-              if (task.status === "todo") totalTodo++;
-              else if (task.status === "in-progress") totalInProgress++;
-              else if (task.status === "done") totalDone++;
+          // Process tasks for each project
+          for (const project of teamProjects) {
+            try {
+              console.log(
+                `   → Fetching tasks for project: ${project.name} (${project._id})`
+              );
 
-              if (
-                task.dueDate &&
-                new Date(task.dueDate) < new Date() &&
-                task.status !== "done"
-              ) {
-                totalOverdue++;
-              }
-            });
-          });
-        } catch (err) {
-          console.warn(`Failed to load projects for team ${team.name}`, err);
+              const tasksRes = await api(`/tasks/${project._id}/tasks`, token);
+              const tasks = tasksRes.data || [];
+
+              console.log(`      ${tasks.length} tasks found`);
+
+              tasks.forEach((task: any) => {
+                // Skip inactive/archived tasks
+                if (!task.isActive) return;
+
+                // Count by status
+                switch (task.status?.toLowerCase()) {
+                  case "todo":
+                    totalTodo++;
+                    break;
+                  case "in-progress":
+                    totalInProgress++;
+                    break;
+                  case "done":
+                    totalDone++;
+                    break;
+                }
+
+                // Overdue: due date passed + not done
+                if (
+                  task.dueDate &&
+                  new Date(task.dueDate) < new Date() &&
+                  task.status?.toLowerCase() !== "done"
+                ) {
+                  totalOverdue++;
+                }
+              });
+            } catch (taskErr: any) {
+              console.warn(
+                `      Failed to load tasks for project ${project._id}:`,
+                taskErr.message
+              );
+            }
+          }
+        } catch (projectErr: any) {
+          console.warn(
+            `Failed to load projects for team ${team.name}:`,
+            projectErr.message
+          );
         }
       }
 
+      // 3. Update states with real data
       setProjects(allProjects);
-      setTaskSummary((prev) => ({
-        ...prev,
+
+      setTaskSummary({
         todo: totalTodo,
         inProgress: totalInProgress,
         done: totalDone,
         overdue: totalOverdue,
-        upcoming: 3, // Mock value
-        reminders: 1, // Mock value
-      }));
+        upcoming: 0, // Can be calculated later (due in next 7 days)
+        reminders: 0, // Can be added when reminder field exists
+      });
+
+      console.log("Dashboard metrics updated:", {
+        todo: totalTodo,
+        inProgress: totalInProgress,
+        done: totalDone,
+        overdue: totalOverdue,
+        totalProjects: allProjects.length,
+      });
     } catch (error: any) {
       console.error("Home Data Fetch Error:", error.message || error);
+      Alert.alert(
+        "Sync Error",
+        "Failed to load dashboard data. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // Add initial load on mount (only once)
   useEffect(() => {
     fetchHomeData();
-  }, [refreshTrigger]);
+  }, []); // Empty dependency array for one-time load
+
+  // Add manual refresh function
+  const handleRefresh = () => {
+    fetchHomeData();
+  };
 
   // Helper: Get first letter of team name
   const getInitial = (name: string) => name.charAt(0).toUpperCase();
@@ -202,13 +344,12 @@ export default function HomeScreen() {
             <View className="flex-1 bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden">
               <SearchBar placeholder="Search Ecosystem..." />
             </View>
-            <View className="ml-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-2 items-center justify-center w-14 h-14">
-              <Image
-                source={images.expo_icon}
-                className="w-8 h-8"
-                resizeMode="contain"
-              />
-            </View>
+            <TouchableOpacity
+              onPress={handleRefresh}
+              className="ml-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-2 items-center justify-center w-14 h-14"
+            >
+              <Ionicons name="refresh" size={24} color="#60a5fa" />
+            </TouchableOpacity>
           </View>
 
           {/* --- Teams Section --- */}

@@ -42,11 +42,8 @@ export default function TeamDetailsScreen() {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [adding, setAdding] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  // const [newMemberEmail, setNewMemberEmail] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const { user } = useUser();
 
@@ -60,24 +57,77 @@ export default function TeamDetailsScreen() {
     });
   };
 
-  const activeTaskCount = (project: Project) =>
-    project.tasks?.filter((t) => t.isActive).length || 0;
-
   const fetchTeam = async () => {
     if (!teamId) return;
+
+    setLoading(true);
+
     try {
       const token = await getToken();
-      // console.log("Token fetched for team data:", token);
-      // Use your existing endpoint that returns team + projects
-      const res = await api(`/projects/team/${teamId}`, token); // This returns projects
-      const projectsRes = res.data || [];
+      if (!token) {
+        console.warn("No token available in fetchTeam");
+        throw new Error("Authentication token missing");
+      }
 
-      // Fetch team separately for full details
+      console.log("Fetching projects for team:", teamId);
+
+      // Fetch all projects for this team
+      const projectsRes = await api(`/projects/team/${teamId}`, token);
+      console.log("Projects endpoint response:", projectsRes);
+
+      const projects = projectsRes.data || [];
+
+      // Fetch task counts for each project with detailed logging
+      const projectsWithTaskCounts = await Promise.all(
+        projects.map(async (project: any) => {
+          try {
+            console.log(
+              `Fetching tasks for project: ${project._id} (${project.name})`
+            );
+
+            const tasksRes = await api(`/tasks/${project._id}/tasks`, token); // Fixed endpoint
+            console.log(`Tasks response for ${project._id}:`, {
+              status: "success",
+              taskCount: tasksRes.data?.length || 0,
+              dataPreview: tasksRes.data?.slice(0, 2), // first 2 tasks only (for debug)
+            });
+
+            const tasks = tasksRes.data || [];
+            const activeTaskCount = tasks.filter((t: any) => t.isActive).length;
+
+            return { ...project, activeTaskCount };
+          } catch (projectErr: any) {
+            console.error(`Failed to fetch tasks for project ${project._id}:`, {
+              message: projectErr.message,
+              status: projectErr.response?.status,
+              errorData: projectErr.response?.data,
+            });
+
+            // Fallback: 0 active tasks if this project fails
+            return { ...project, activeTaskCount: 0 };
+          }
+        })
+      );
+
+      // Fetch full team details
+      console.log("Fetching full team details:", teamId);
       const teamRes = await api(`/teams/${teamId}`, token);
-      teamRes.data.isAdmin === true ? setIsAdmin(true) : setIsAdmin(false);
-      setTeam({ ...teamRes.data, projects: projectsRes });
-    } catch (err) {
-      console.error("Failed to load team data:", err);
+      console.log("Team response:", teamRes);
+
+      const isAdmin = teamRes.data.isAdmin === true;
+      setIsAdmin(isAdmin);
+
+      setTeam({ ...teamRes.data, projects: projectsWithTaskCounts });
+    } catch (err: any) {
+      console.error("Critical failure in fetchTeam:", {
+        message: err.message,
+        stack: err.stack,
+      });
+
+      Alert.alert(
+        "Sync Error",
+        "Failed to load team & projects. Check connection or sign in again."
+      );
     } finally {
       setLoading(false);
     }
@@ -165,75 +215,6 @@ export default function TeamDetailsScreen() {
       setAddingMember(false);
     }
   };
-
-  // const confirmRemoveMember = (member: {
-  //   userId?: string;
-  //   name?: string;
-  //   email?: string;
-  // }) => {
-  //   if (!member.userId) {
-  //     Alert.alert(
-  //       "Pending Invite",
-  //       "This is a pending invitation (no userId yet). You can only remove active members.\n\nTo revoke, delete the invite from Clerk dashboard for now.",
-  //       [{ text: "OK" }]
-  //     );
-  //     return;
-  //   }
-
-  //   Alert.alert(
-  //     "Remove Member",
-  //     `Remove ${member.name || member.email} from ${team?.name}?`,
-  //     [
-  //       { text: "Cancel", style: "cancel" },
-  //       {
-  //         text: "Remove",
-  //         style: "destructive",
-  //         onPress: async () => {
-  //           try {
-  //             const token = await getToken();
-  //             const url = `/teams/${teamId}/members/${member.userId}`;
-
-  //             console.log("DELETE attempt → URL:", url);
-  //             console.log("Member userId:", member.userId);
-
-  //             const res = await api(url, token, { method: "DELETE" });
-
-  //             console.log("DELETE full response:", res); // ← This is what you're missing
-
-  //             if (!res.success) {
-  //               throw new Error(res.error || "Backend rejected removal");
-  //             }
-
-  //             // Optimistic UI update
-  //             setTeam((prev) =>
-  //               prev
-  //                 ? {
-  //                     ...prev,
-  //                     members: prev.members.filter(
-  //                       (m) => m.userId !== member.userId
-  //                     ),
-  //                   }
-  //                 : null
-  //             );
-
-  //             Toast.show({
-  //               type: "success",
-  //               text1: "Member Removed",
-  //               text2: "Access revoked successfully",
-  //             });
-  //           } catch (err: any) {
-  //             console.error("Remove member full error:", err);
-  //             Toast.show({
-  //               type: "error",
-  //               text1: "Failed to remove member",
-  //               text2: err.message || "Check console for details",
-  //             });
-  //           }
-  //         },
-  //       },
-  //     ]
-  //   );
-  // };
 
   const confirmRemoveMember = (member: {
     userId?: string;
@@ -416,44 +397,6 @@ export default function TeamDetailsScreen() {
             </View>
           </View>
 
-          {/* Members List */}
-          {/* <Text className="text-white text-xl font-bold mb-4">
-            Team Members
-          </Text>
-          <View className="space-y-4 mb-10">
-            {team.members.map((member, index) => (
-              <View
-                key={index}
-                className="bg-slate-800/40 rounded-2xl p-5 flex-row items-center border border-slate-700/50"
-              >
-                <View className="w-12 h-12 rounded-xl bg-indigo-600 items-center justify-center mr-4">
-                  <Text className="text-white text-xl font-bold">
-                    {getInitial(member.name || "U")}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <Text className="text-white font-semibold">
-                    {member.name || "Unknown"}
-                  </Text>
-                  <Text className="text-slate-400 text-sm">
-                    {member.email || "No email"}
-                  </Text>
-                </View>
-                <View
-                  className={`px-3 py-1 rounded-full ${
-                    member.role === "admin"
-                      ? "bg-purple-600/30"
-                      : "bg-slate-600/30"
-                  }`}
-                >
-                  <Text className="text-xs font-bold text-purple-300 uppercase">
-                    {member.role}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View> */}
-
           {/* Team Members Section */}
           <View className="mt-8 bg-slate-800/40 mb-5 border border-slate-700 rounded-2xl p-5">
             <View className="flex-row justify-between items-center mb-5">
@@ -592,7 +535,17 @@ export default function TeamDetailsScreen() {
           </Modal>
 
           {/* Projects List — Added Underneath */}
-          <Text className="text-white text-2xl font-bold mb-6">Projects</Text>
+          <View className="flex-row justify-between items-center mb-6 mt-5">
+            <Text className="text-white text-2xl font-bold">Projects</Text>
+
+            <TouchableOpacity
+              onPress={() => router.push("/create-project")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle-outline" size={30} color="#60a5fa" />
+            </TouchableOpacity>
+          </View>
+
           {team.projects && team.projects.length > 0 ? (
             <View className="space-y-5 pb-10">
               {team.projects.map((project) => (
@@ -617,7 +570,7 @@ export default function TeamDetailsScreen() {
                           {project.name}
                         </Text>
                         <Text className="text-slate-400 mt-1">
-                          {project.activeTaskCount || 0} active task
+                          {project.activeTaskCount} active task
                           {project.activeTaskCount !== 1 ? "s" : ""}
                         </Text>
                       </View>
