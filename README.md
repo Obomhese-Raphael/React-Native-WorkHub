@@ -84,7 +84,7 @@ workhub/
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/workhub.git
+git clone {the_url}
 cd workhub
 
 # Install dependencies
